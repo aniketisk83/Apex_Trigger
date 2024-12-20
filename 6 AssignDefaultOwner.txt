@@ -1,0 +1,18 @@
+trigger AssignDefaultOwner on Case (before insert) {
+    
+	// Define the default Owner ID (replace with the actual User or Queue ID)
+    
+	Id defaultOwnerId = '0055g000001XYZAB'; // Update this with the actual User/Queue ID
+    
+    // Iterate through the new Cases being created
+    
+	for (Case newCase : Trigger.new) {
+       
+	   // Check if the Case meets the criteria for assigning the default Owner
+        
+		if (newCase.Origin == 'Email' && newCase.Priority == 'High') {
+           
+		   newCase.OwnerId = defaultOwnerId;
+        }
+    }
+}

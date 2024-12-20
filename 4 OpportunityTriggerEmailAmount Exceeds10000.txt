@@ -1,0 +1,40 @@
+trigger NotifyOpportunityOwner on Opportunity (after insert, after update) {
+    
+	// Loop through the Opportunity records to check the condition
+    
+	for (Opportunity opp : Trigger.new) {
+        
+		// Check if the Opportunity amount exceeds $10,000
+       
+	   if (opp.Amount != null && opp.Amount > 10000) {
+           
+		   // Ensure the Opportunity owner has an email address
+           
+		   if (opp.Owner.Email != null) {
+                
+				// Prepare the email
+               
+			   Messaging.SingleEmailMessage email = new Messaging.SingleEmailMessage();
+               
+			   email.setToAddresses(new String[] {opp.Owner.Email});
+               
+			   email.setSubject('Opportunity Amount Exceeded $10,000');
+               
+			   email.setPlainTextBody('Hello ' + opp.Owner.Name + 
+                    
+					',\n\nThe Opportunity "' + opp.Name + '" has exceeded the amount of $10,000.' + 
+                  
+				  '\n\nAmount: $' + opp.Amount + 
+                  
+				  '\nStage: ' + opp.StageName + 
+                   
+				   '\nClose Date: ' + opp.CloseDate);
+
+
+                // Send the email
+                
+				Messaging.sendEmail(new Messaging.SingleEmailMessage[] {email});
+            }
+        }
+    }
+}

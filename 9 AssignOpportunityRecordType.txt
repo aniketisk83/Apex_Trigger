@@ -1,0 +1,37 @@
+trigger AssignOpportunityRecordType on Opportunity (before insert) {
+    
+	// Fetch the Record Type IDs (Replace these with your actual Record Type IDs)
+   
+   String prospectingRecordTypeId = '0125g000000XYZ123'; // Record Type for Prospecting
+    
+	String closedWonRecordTypeId = '0125g000000XYZ456';   // Record Type for Closed Won
+    
+	String closedLostRecordTypeId = '0125g000000XYZ789';  // Record Type for Closed Lost
+
+    // Loop through each Opportunity being inserted
+    
+	for (Opportunity opp : Trigger.new) {
+       
+	   // Check if the RecordTypeId is not already set
+        
+		if (opp.RecordTypeId == null) {
+           
+		   // Assign Record Type based on the Stage
+           
+		   if (opp.StageName == 'Prospecting') {
+               
+			   opp.RecordTypeId = prospectingRecordTypeId;
+            } 
+			
+			else if (opp.StageName == 'Closed Won') {
+               
+			   opp.RecordTypeId = closedWonRecordTypeId;
+            } 
+			
+			else if (opp.StageName == 'Closed Lost') {
+                
+				opp.RecordTypeId = closedLostRecordTypeId;
+            }
+        }
+    }
+}

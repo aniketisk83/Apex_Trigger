@@ -1,0 +1,76 @@
+trigger UpdateAccountTotalAmount on Opportunity (after insert, after update, after delete, after undelete) {
+   
+   // Set to store Account IDs that need to be updated
+    
+	Set<Id> accountIds = new Set<Id>();
+    
+    // Collect Account IDs from Trigger context
+    
+	if (Trigger.isInsert || Trigger.isUpdate || Trigger.isUndelete) {
+        
+		for (Opportunity opp : Trigger.new) {
+           
+		   if (opp.AccountId != null) {
+               
+			   accountIds.add(opp.AccountId);
+            }
+        }
+    }
+   
+   if (Trigger.isDelete) {
+       
+	   for (Opportunity opp : Trigger.old) {
+           
+		   if (opp.AccountId != null) {
+               
+			   accountIds.add(opp.AccountId);
+            }
+        }
+    }
+
+    // If there are no related Accounts, exit early
+    
+	if (accountIds.isEmpty()) {
+       
+	   return;
+    }
+
+    // Map to store the total Opportunity Amount for each Account
+    
+	Map<Id, Decimal> accountTotalMap = new Map<Id, Decimal>();
+    
+    // Query all Opportunities related to the collected Account IDs and sum their Amounts
+    
+	List<AggregateResult> aggregatedResults = [ SELECT AccountId, SUM(Amount) totalAmountFROM OpportunityWHERE AccountId IN :accountIds AND IsClosed = trueGROUP BY AccountId];
+
+    // Store the total amounts in the Map
+    
+	for (AggregateResult result : aggregatedResults) {
+       
+	   accountTotalMap.put((Id)result.get('AccountId'), (Decimal)result.get('totalAmount'));
+    }
+    
+    // List to hold Accounts that need to be updated
+    
+	List<Account> accountsToUpdate = new List<Account>();
+    
+    // Iterate over the collected Account IDs and update the custom field
+    
+	for (Id accountId : accountIds) {
+        
+		Account acc = new Account();
+        
+		acc.Id = accountId;
+        
+		acc.Total_Opportunity_Amount__c = accountTotalMap.containsKey(accountId) ? accountTotalMap.get(accountId) : 0;
+        
+		accountsToUpdate.add(acc);
+    }
+    
+    // Update the Accounts with the new total amount
+    
+	if (!accountsToUpdate.isEmpty()) {
+        
+		update accountsToUpdate;
+    }
+}

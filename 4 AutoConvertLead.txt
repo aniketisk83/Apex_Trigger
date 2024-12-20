@@ -1,0 +1,40 @@
+trigger AutoConvertLead on Lead (after update) {
+    
+	// Iterate through each Lead that has been updated
+   
+   for (Lead lead : Trigger.new) {
+       
+	   // Check if the Lead Status is "Qualified" and it was not already converted
+       
+	   if (lead.Status == 'Qualified' && !lead.IsConverted) {
+           
+		   try {
+              
+			  // Prepare the LeadConvert object to convert the lead
+               
+			   LeadConvert leadConvert = new LeadConvert();
+              
+			  leadConvert.setLeadId(lead.Id);
+                
+                // Automatically create an Account and Contact
+               
+			   leadConvert.setDoNotCreateOpportunity(true); // Skip creating an Opportunity if not needed
+                
+                // Convert the Lead
+               
+			   Database.LeadConvertResult conversionResult = Database.convertLead(leadConvert);
+                
+                if (!conversionResult.isSuccess()) {
+                    
+					System.debug('Lead conversion failed for Lead ID: ' + lead.Id);
+                
+				}
+            } 
+			
+			catch (Exception e) {
+                
+				System.debug('Error converting lead: ' + e.getMessage());
+            }
+        }
+    }
+}

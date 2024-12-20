@@ -1,0 +1,77 @@
+trigger UpdateContactOpportunityCount on Opportunity (after insert, after update, after delete, after undelete) {
+    
+	// Step 1: Collect Contact IDs impacted by the changes
+    
+	Set<Id> contactIds = new Set<Id>();
+
+    // Collect Contact IDs from new or updated records
+    
+	if (Trigger.isInsert || Trigger.isUpdate || Trigger.isUndelete) {
+       
+	   for (Opportunity opp : Trigger.new) {
+           
+		   if (opp.ContactId != null) {
+               
+			   contactIds.add(opp.ContactId);
+            }
+        }
+    }
+    
+    // Collect Contact IDs from deleted records
+    
+	if (Trigger.isDelete) {
+        
+		for (Opportunity opp : Trigger.old) {
+           
+		   if (opp.ContactId != null) {
+              
+			  contactIds.add(opp.ContactId);
+            }
+        }
+    }
+
+    // If there are no related Contacts, exit early
+    
+	if (contactIds.isEmpty()) {
+        
+		return;
+    }
+
+    // Step 2: Count the number of Opportunities associated with each Contact
+    
+	Map<Id, Integer> contactOpportunityCountMap = new Map<Id, Integer>();
+    
+	List<AggregateResult> aggregateResults = [SELECT ContactId, COUNT(Id) totalCountFROM OpportunityWHERE ContactId IN :contactIdsGROUP BY ContactId];
+
+    // Store the counts in a map
+    
+	for (AggregateResult result : aggregateResults) {
+        
+		contactOpportunityCountMap.put((Id) result.get('ContactId'), (Integer) result.get('totalCount'));
+    }
+
+    // Step 3: Prepare a list of Contacts to update with the new count
+    
+	List<Contact> contactsToUpdate = new List<Contact>();
+    
+	for (Id contactId : contactIds) {
+        
+		Contact con = new Contact();
+        
+		con.Id = contactId;
+       
+	   // Set the custom field with the number of related Opportunities or set to 0 if none found
+        
+		con.Number_of_Opportunities__c = contactOpportunityCountMap.containsKey(contactId) 
+                                         ? contactOpportunityCountMap.get(contactId) 
+                                         : 0;
+        contactsToUpdate.add(con);
+    }
+
+    // Step 4: Perform a bulk update on the Contact records
+    
+	if (!contactsToUpdate.isEmpty()) {
+        
+		update contactsToUpdate;
+    }
+}

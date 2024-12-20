@@ -1,0 +1,44 @@
+trigger PreventTaskWithoutAccountOwner on Task (before insert) {
+    
+	// Collect Account IDs from new Task records being created
+    
+	Set<Id> accountIds = new Set<Id>();
+    
+	for (Task task : Trigger.new) {
+        
+		// Only consider Tasks linked to Accounts
+        
+		if (task.WhatId != null && task.WhatId.getSObjectType() == Account.SObjectType) {
+           
+		   accountIds.add(task.WhatId);
+        }
+    }
+    
+    // Exit early if no Tasks are linked to Accounts
+    
+	if (accountIds.isEmpty()) {
+      
+	  return;
+    }
+
+    // Query to check if the related Accounts have an Owner assigned
+    
+	Map<Id, Account> accountMap = new Map<Id, Account>([SELECT Id, OwnerId FROM Account WHERE Id IN :accountIds]);
+
+    // Check if the Accounts have an assigned Owner
+    
+	for (Task task : Trigger.new) {
+       
+	   if (task.WhatId != null && task.WhatId.getSObjectType() == Account.SObjectType) {
+        
+		Account relatedAccount = accountMap.get(task.WhatId);
+            
+            // If the Account does not have an Owner, prevent the Task creation
+            
+			if (relatedAccount == null || relatedAccount.OwnerId == null) {
+               
+			   task.addError('You cannot create a Task for an Account without an assigned Owner.');
+            }
+        }
+    }
+}

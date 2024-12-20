@@ -1,0 +1,31 @@
+trigger UpdateAccountLastModified on Contact (after update) {
+    
+	// Create a Map to hold Account Ids that need to be updated
+    
+	Map<Id, Account> accMap = new Map<Id, Account>();
+
+    // Loop through the Contacts that were updated
+    
+	for (Contact objCon : Trigger.new) {
+        
+		// Check if the AccountId is not null and if there's a change in the Contact fields
+        
+		if (objCon.AccountId != null && objCon != Trigger.oldMap.get(objCon.Id)) {
+            
+			// Prepare an Account record to update the custom field
+           
+		   Account acc = new Account(Id = objCon.AccountId);
+            
+			acc.Last_Contact_Update__c = Date.today(); // Update to today's date
+            
+			accountsToUpdate.put(acc.Id, acc);
+        }
+    }
+
+    // Perform a bulk update for all the modified Accounts
+    
+		if (!accountsToUpdate.isEmpty()) {
+        
+		update accountsToUpdate.values();
+    }
+}

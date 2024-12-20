@@ -1,0 +1,66 @@
+trigger UpdateCaseActivityCount on Task (after insert, after update, after delete, after undelete) {
+
+    // Set to hold Case IDs for which the Total_Activities__c field needs to be updated
+    Set<Id> caseIdsToUpdate = new Set<Id>();
+
+    // Collect Case IDs from the affected Task records
+    if (Trigger.isInsert || Trigger.isUpdate || Trigger.isUndelete) {
+        for (Task t : Trigger.new) {
+            if (t.WhatId != null && t.WhatId.getSObjectType() == Case.SObjectType) {
+                caseIdsToUpdate.add(t.WhatId);
+            }
+        }
+    }
+
+    if (Trigger.isDelete) {
+        for (Task t : Trigger.old) {
+            if (t.WhatId != null && t.WhatId.getSObjectType() == Case.SObjectType) {
+                caseIdsToUpdate.add(t.WhatId);
+            }
+        }
+    }
+
+    // Calculate the total number of related Tasks and Events for each Case
+    if (!caseIdsToUpdate.isEmpty()) {
+        Map<Id, Integer> caseActivityCounts = new Map<Id, Integer>();
+
+        // Query Tasks grouped by Case
+        List<AggregateResult> taskCounts = [
+            SELECT WhatId, COUNT(Id) count 
+            FROM Task 
+            WHERE WhatId IN :caseIdsToUpdate 
+            GROUP BY WhatId
+        ];
+
+        for (AggregateResult result : taskCounts) {
+            Id caseId = (Id)result.get('WhatId');
+            Integer count = (Integer)result.get('count');
+            caseActivityCounts.put(caseId, count);
+        }
+
+        // Query Events grouped by Case
+        List<AggregateResult> eventCounts = [
+            SELECT WhatId, COUNT(Id) count 
+            FROM Event 
+            WHERE WhatId IN :caseIdsToUpdate 
+            GROUP BY WhatId
+        ];
+
+        for (AggregateResult result : eventCounts) {
+            Id caseId = (Id)result.get('WhatId');
+            Integer count = (Integer)result.get('count');
+            caseActivityCounts.put(caseId, caseActivityCounts.getOrDefault(caseId, 0) + count);
+        }
+
+        // Prepare Cases to update with the new Total_Activities__c value
+        List<Case> casesToUpdate = new List<Case>();
+        for (Id caseId : caseActivityCounts.keySet()) {
+            casesToUpdate.add(new Case(Id = caseId, Total_Activities__c = caseActivityCounts.get(caseId)));
+        }
+
+        // Perform the update
+        if (!casesToUpdate.isEmpty()) {
+            update casesToUpdate;
+        }
+    }
+}

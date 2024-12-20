@@ -1,0 +1,30 @@
+trigger OpportunityOwnerToAccountTeamTrigger on Opportunity (after insert, after update) {
+    // List to store AccountTeamMember records to be created
+    List<AccountTeamMember> accountTeamMembersToAdd = new List<AccountTeamMember>();
+
+    // Loop through the Opportunity records
+    for (Opportunity opp : Trigger.new) {
+        // Check if the Probability is 50% and it's a new record or updated
+        if (opp.Probability == 50 && opp.AccountId != null && opp.OwnerId != null) {
+            // Check if the Opportunity Owner is already part of the Account Team (Avoid duplicates)
+            List<AccountTeamMember> existingAccountTeamMembers = [
+                SELECT Id, UserId FROM AccountTeamMember WHERE AccountId = :opp.AccountId AND UserId = :opp.OwnerId
+            ];
+
+            // If the Owner is not already in the Account Team, add them
+            if (existingAccountTeamMembers.isEmpty()) {
+                AccountTeamMember newAccountTeamMember = new AccountTeamMember(
+                    AccountId = opp.AccountId,
+                    UserId = opp.OwnerId,
+                    TeamMemberRole = 'Opportunity Owner' // You can adjust the role as needed
+                );
+                accountTeamMembersToAdd.add(newAccountTeamMember);
+            }
+        }
+    }
+
+    // Insert the new Account Team Members if there are any
+    if (!accountTeamMembersToAdd.isEmpty()) {
+        insert accountTeamMembersToAdd;
+    }
+}

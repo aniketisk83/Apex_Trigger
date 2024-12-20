@@ -1,0 +1,60 @@
+trigger UpdateContactCount on Contact (after insert, after update, after delete) {
+
+    // Set to hold Opportunity IDs for which Contact count needs to be updated
+    Set<Id> opportunityIdsToUpdate = new Set<Id>();
+
+    // Collect Opportunity IDs from the affected Contacts
+    if (Trigger.isInsert || Trigger.isUpdate) {
+        for (Contact con : Trigger.new) {
+            if (con.Opportunity__c != null) {
+                opportunityIdsToUpdate.add(con.Opportunity__c);
+            }
+        }
+    }
+
+    if (Trigger.isDelete) {
+        for (Contact con : Trigger.old) {
+            if (con.Opportunity__c != null) {
+                opportunityIdsToUpdate.add(con.Opportunity__c);
+            }
+        }
+    }
+
+    // Query Opportunities to get their related Contacts
+    List<AggregateResult> contactCounts = [
+        SELECT Opportunity__c, COUNT(Id) 
+        FROM Contact 
+        WHERE Opportunity__c IN :opportunityIdsToUpdate
+        GROUP BY Opportunity__c
+    ];
+
+    // Map to hold the count of Contacts for each Opportunity
+    Map<Id, Integer> opportunityContactCountMap = new Map<Id, Integer>();
+
+    // Populate the map with Contact counts
+    for (AggregateResult ar : contactCounts) {
+        opportunityContactCountMap.put((Id)ar.get('Opportunity__c'), (Integer)ar.get('expr0'));
+    }
+
+    // List to hold Opportunity records to be updated
+    List<Opportunity> opportunitiesToUpdate = new List<Opportunity>();
+
+    // Iterate over each Opportunity ID to update the Contact_Count__c field
+    for (Id oppId : opportunityIdsToUpdate) {
+        Integer contactCount = opportunityContactCountMap.get(oppId);
+        
+        // If no Contact count exists for this Opportunity, set it to 0
+        if (contactCount == null) {
+            contactCount = 0;
+        }
+
+        // Create or update Opportunity with the Contact count
+        Opportunity opp = new Opportunity(Id = oppId, Contact_Count__c = contactCount);
+        opportunitiesToUpdate.add(opp);
+    }
+
+    // Update Opportunities with the new Contact count
+    if (!opportunitiesToUpdate.isEmpty()) {
+        update opportunitiesToUpdate;
+    }
+}

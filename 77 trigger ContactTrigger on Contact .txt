@@ -1,0 +1,25 @@
+trigger ContactTrigger on Contact (before update) {
+    if (!TriggerHelper.isTrigger2Running) {
+        try {
+            TriggerHelper.isTrigger2Running = true;
+
+            // Your logic to update related Accounts
+            List<Account> accountsToUpdate = new List<Account>();
+            for (Contact con : Trigger.new) {
+                if (con.Phone != Trigger.oldMap.get(con.Id).Phone) {
+                    // Fetch related Accounts and update them
+                    accountsToUpdate.add(new Account(
+                        Id = con.AccountId,
+                        Phone = con.Phone
+                    ));
+                }
+            }
+            if (!accountsToUpdate.isEmpty()) {
+                update accountsToUpdate;
+            }
+
+        } finally {
+            TriggerHelper.isTrigger2Running = false; // Ensure the flag is reset
+        }
+    }
+}

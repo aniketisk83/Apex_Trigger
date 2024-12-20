@@ -1,0 +1,16 @@
+trigger ContactTrigger on Contact (after update) {
+    // Trigger logic updates the related account, causing the Account trigger to fire
+    List<Account> accountsToUpdate = new List<Account>();
+    for (Contact con : Trigger.new) {
+        if (con.Phone != Trigger.oldMap.get(con.Id).Phone) {
+            Account relatedAccount = [SELECT Id, Phone FROM Account WHERE Id = :con.AccountId LIMIT 1];
+            if (relatedAccount != null) {
+                relatedAccount.Phone = con.Phone;
+                accountsToUpdate.add(relatedAccount);
+            }
+        }
+    }
+    if (!accountsToUpdate.isEmpty()) {
+        update accountsToUpdate; // This update will invoke the Account trigger
+    }
+}

@@ -1,0 +1,60 @@
+trigger UpdateOpportunityLineItemCount on OpportunityLineItem (after insert, after update, after delete) {
+
+    // Set to hold Opportunity IDs for which the Opportunity_Line_Item_Count__c field needs to be updated
+    Set<Id> opportunityIdsToUpdate = new Set<Id>();
+
+    // Collect Opportunity IDs from the affected OpportunityLineItems
+    if (Trigger.isInsert || Trigger.isUpdate) {
+        for (OpportunityLineItem oli : Trigger.new) {
+            if (oli.OpportunityId != null) {
+                opportunityIdsToUpdate.add(oli.OpportunityId);
+            }
+        }
+    }
+
+    if (Trigger.isDelete) {
+        for (OpportunityLineItem oli : Trigger.old) {
+            if (oli.OpportunityId != null) {
+                opportunityIdsToUpdate.add(oli.OpportunityId);
+            }
+        }
+    }
+
+    // Query Opportunities to get the count of related OpportunityLineItems for each Opportunity
+    List<AggregateResult> opportunityLineItemCounts = [
+        SELECT OpportunityId, COUNT(Id) 
+        FROM OpportunityLineItem 
+        WHERE OpportunityId IN :opportunityIdsToUpdate
+        GROUP BY OpportunityId
+    ];
+
+    // Map to hold the count of OpportunityLineItems for each Opportunity
+    Map<Id, Integer> opportunityLineItemCountMap = new Map<Id, Integer>();
+
+    // Populate the map with the count of OpportunityLineItems
+    for (AggregateResult ar : opportunityLineItemCounts) {
+        opportunityLineItemCountMap.put((Id)ar.get('OpportunityId'), (Integer)ar.get('expr0'));
+    }
+
+    // List to hold Opportunity records to be updated
+    List<Opportunity> opportunitiesToUpdate = new List<Opportunity>();
+
+    // Iterate over each Opportunity ID to update the Opportunity_Line_Item_Count__c field
+    for (Id opportunityId : opportunityIdsToUpdate) {
+        Integer lineItemCount = opportunityLineItemCountMap.get(opportunityId);
+        
+        // If no OpportunityLineItems are found for this Opportunity, set the count to 0
+        if (lineItemCount == null) {
+            lineItemCount = 0;
+        }
+
+        // Create or update Opportunity with the new Opportunity_Line_Item_Count__c value
+        Opportunity opp = new Opportunity(Id = opportunityId, Opportunity_Line_Item_Count__c = lineItemCount);
+        opportunitiesToUpdate.add(opp);
+    }
+
+    // Update Opportunities with the new Opportunity Line Item count
+    if (!opportunitiesToUpdate.isEmpty()) {
+        update opportunitiesToUpdate;
+    }
+}

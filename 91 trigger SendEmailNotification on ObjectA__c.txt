@@ -1,0 +1,67 @@
+trigger SendEmailNotification on ObjectA__c (after update) {
+
+    // Collect Object B IDs related to updated Object A records
+    Set<Id> objectBIdsToCheck = new Set<Id>();
+
+    // Collect the related Object B records based on updated Object A records
+    for (ObjectA__c objA : Trigger.new) {
+        if (objA.ObjectB__c != null) {
+            objectBIdsToCheck.add(objA.ObjectB__c);
+        }
+    }
+
+    // Query Object B records related to updated Object A records
+    List<ObjectB__c> objectBRecords = [SELECT Id, Approval_Status__c, ObjectC__c FROM ObjectB__c WHERE Id IN :objectBIdsToCheck];
+
+    // Set to collect Object C IDs to query
+    Set<Id> objectCIdsToCheck = new Set<Id>();
+
+    // Collect Object C IDs related to Object B
+    for (ObjectB__c objB : objectBRecords) {
+        if (objB.ObjectC__c != null) {
+            objectCIdsToCheck.add(objB.ObjectC__c);
+        }
+    }
+
+    // Query Object C records related to Object B records
+    List<ObjectC__c> objectCRecords = [SELECT Id, Category__c FROM ObjectC__c WHERE Id IN :objectCIdsToCheck];
+
+    // Map Object C IDs to Category__c values for easy access
+    Map<Id, ObjectC__c> objectCMap = new Map<Id, ObjectC__c>();
+    for (ObjectC__c objC : objectCRecords) {
+        objectCMap.put(objC.Id, objC);
+    }
+
+    // Now, process the related records and check the conditions
+    for (ObjectB__c objB : objectBRecords) {
+        // Check if the Approval_Status__c is 'Approved' on Object B
+        if (objB.Approval_Status__c == 'Approved' && objectCMap.containsKey(objB.ObjectC__c)) {
+            ObjectC__c objC = objectCMap.get(objB.ObjectC__c);
+            
+            // Check if Category__c is 'High Priority' on Object C
+            if (objC.Category__c == 'High Priority') {
+                // Send email if conditions are met
+                sendEmailNotification();
+            }
+        }
+    }
+}
+
+// Helper method to send email notification
+public static void sendEmailNotification() {
+    // Define the email details
+    String subject = 'Important Notification: Record Update on Object A';
+    String body = 'The related Object B and Object C records meet the conditions. Please review the records.';
+    
+    // Define the recipient email address (can be dynamic as needed)
+    String recipientEmail = 'example@example.com';
+
+    // Send email
+    Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
+    mail.setToAddresses(new String[] {recipientEmail});
+    mail.setSubject(subject);
+    mail.setPlainTextBody(body);
+    
+    // Send the email
+    Messaging.sendEmail(new Messaging.SingleEmailMessage[] {mail});
+}

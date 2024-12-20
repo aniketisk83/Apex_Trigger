@@ -1,0 +1,8 @@
+trigger AccountTrigger on Account (after update) {
+    // Trigger logic updates related contacts, causing the Contact trigger to fire
+    List<Contact> contactsToUpdate = new List<Contact>();
+    for (Account acc : Trigger.new) {
+        if (acc.Phone != Trigger.oldMap.get(acc.Id).Phone) {
+            // Fetch related contacts and update their phone numbers
+            List<Contact> relatedContacts = [SELECT Id FROM Contact WHERE AccountId = :acc.Id];
+            for 

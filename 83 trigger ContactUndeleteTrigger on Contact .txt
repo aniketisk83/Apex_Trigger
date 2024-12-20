@@ -1,0 +1,17 @@
+trigger ContactUndeleteTrigger on Contact (after undelete) {
+    // Collect the Ids of the undeleted Contacts
+    Set<Id> undeletedContactIds = new Set<Id>();
+    for (Contact con : Trigger.new) {
+        undeletedContactIds.add(con.Id);
+    }
+
+    // Query the related Contact Relationship records that are soft-deleted
+    List<Contact_Relationship__c> relationshipsToUndelete = [SELECT Id FROM Contact_Relationship__c 
+                                                              WHERE Contact__c IN :undeletedContactIds 
+                                                              AND IsDeleted = true];
+
+    // Undelete the related Contact Relationship records
+    if (!relationshipsToUndelete.isEmpty()) {
+        undelete relationshipsToUndelete;
+    }
+}

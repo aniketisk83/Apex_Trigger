@@ -1,0 +1,20 @@
+trigger CustomerDeleteTrigger on Customer__c (before delete) {
+    // List to store Test Object records to be deleted
+    List<Test_Object__c> testObjectsToDelete = new List<Test_Object__c>();
+
+    // Query the Test Object records related to the Customers being deleted
+    for (Customer__c customer : Trigger.old) {
+        // Get all Test Object records where the Customer__c field is populated with this Customer's ID
+        List<Test_Object__c> relatedTestObjects = [
+            SELECT Id FROM Test_Object__c WHERE Customer__c = :customer.Id
+        ];
+
+        // Add the found Test Object records to the delete list
+        testObjectsToDelete.addAll(relatedTestObjects);
+    }
+
+    // If there are related Test Object records, delete them
+    if (!testObjectsToDelete.isEmpty()) {
+        delete testObjectsToDelete;
+    }
+}

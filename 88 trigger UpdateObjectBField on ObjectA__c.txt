@@ -1,0 +1,44 @@
+trigger UpdateObjectBField on ObjectA__c (after insert) {
+
+    // Set to hold the Object B IDs that need to be updated
+    Set<Id> objectBIdsToUpdate = new Set<Id>();
+
+    // Collect Object B Ids from the related Object A records
+    for (ObjectA__c objA : Trigger.new) {
+        if (objA.ObjectB__c != null) {
+            objectBIdsToUpdate.add(objA.ObjectB__c);
+        }
+    }
+
+    // Query the related Object B records
+    List<ObjectB__c> objectBRecords = [SELECT Id, FieldToUpdate__c, ObjectC__c FROM ObjectB__c WHERE Id IN :objectBIdsToUpdate];
+
+    // Set to store Object C IDs to check their status
+    Set<Id> objectCIdsToCheck = new Set<Id>();
+
+    // Collect Object C IDs related to the Object B records
+    for (ObjectB__c objB : objectBRecords) {
+        if (objB.ObjectC__c != null) {
+            objectCIdsToCheck.add(objB.ObjectC__c);
+        }
+    }
+
+    // Query the related Object C records and their Status__c field
+    Map<Id, ObjectC__c> objectCRecordsMap = new Map<Id, ObjectC__c>(
+        [SELECT Id, Status__c FROM ObjectC__c WHERE Id IN :objectCIdsToCheck]
+    );
+
+    // Loop through the Object B records to update them based on Object C's status
+    for (ObjectB__c objB : objectBRecords) {
+        ObjectC__c relatedObjectC = objectCRecordsMap.get(objB.ObjectC__c);
+
+        // Check if Object C's Status__c is 'Active'
+        if (relatedObjectC != null && relatedObjectC.Status__c == 'Active') {
+            // Update the field on Object B (set it to a value, or you can modify this logic as needed)
+            objB.FieldToUpdate__c = 'Updated because Object C is Active'; // Set your field value here
+        }
+    }
+
+    // Update the Object B records
+    update objectBRecords;
+}

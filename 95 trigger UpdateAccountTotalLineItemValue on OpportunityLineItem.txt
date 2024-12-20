@@ -1,0 +1,57 @@
+trigger UpdateAccountTotalLineItemValue on OpportunityLineItem (after insert, after update, after delete, after undelete) {
+    // Set to collect unique Account IDs
+    Set<Id> accountIds = new Set<Id>();
+
+    // Collect Account IDs from Opportunity Line Items
+    if (Trigger.isInsert || Trigger.isUpdate || Trigger.isUndelete) {
+        for (OpportunityLineItem oli : Trigger.new) {
+            if (oli.OpportunityId != null) {
+                Opportunity opp = [SELECT AccountId FROM Opportunity WHERE Id = :oli.OpportunityId];
+                if (opp.AccountId != null) {
+                    accountIds.add(opp.AccountId);
+                }
+            }
+        }
+    }
+
+    if (Trigger.isDelete) {
+        for (OpportunityLineItem oli : Trigger.old) {
+            if (oli.OpportunityId != null) {
+                Opportunity opp = [SELECT AccountId FROM Opportunity WHERE Id = :oli.OpportunityId];
+                if (opp.AccountId != null) {
+                    accountIds.add(opp.AccountId);
+                }
+            }
+        }
+    }
+
+    // Query the total line item value grouped by Account
+    if (!accountIds.isEmpty()) {
+        Map<Id, Decimal> accountTotalMap = new Map<Id, Decimal>();
+
+        List<AggregateResult> results = [
+            SELECT Opportunity.AccountId accountId, SUM(TotalPrice) totalValue
+            FROM OpportunityLineItem
+            WHERE Opportunity.AccountId IN :accountIds
+            GROUP BY Opportunity.AccountId
+        ];
+
+        for (AggregateResult result : results) {
+            Id accountId = (Id)result.get('accountId');
+            Decimal totalValue = (Decimal)result.get('totalValue');
+            accountTotalMap.put(accountId, totalValue);
+        }
+
+        // Prepare Account records for update
+        List<Account> accountsToUpdate = new List<Account>();
+        for (Id accountId : accountIds) {
+            Decimal totalValue = accountTotalMap.getOrDefault(accountId, 0);
+            accountsToUpdate.add(new Account(Id = accountId, Total_Line_Item_Value__c = totalValue));
+        }
+
+        // Perform the update
+        if (!accountsToUpdate.isEmpty()) {
+            update accountsToUpdate;
+        }
+    }
+}

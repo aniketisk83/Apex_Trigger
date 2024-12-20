@@ -1,0 +1,27 @@
+trigger CustomerTrigger on Customer__c (before insert, before delete) {
+    // Before Insert: Calculate and set Income Tax
+    if (Trigger.isInsert) {
+        for (Customer__c customer : Trigger.new) {
+            if (customer.Salary__c != null) {
+                // Example: Calculate Income Tax as 10% of Salary
+                customer.Income_Tax__c = customer.Salary__c * 0.1;
+            }
+        }
+    }
+
+    // Before Delete: Create Test__c record with Customer values
+    if (Trigger.isDelete) {
+        List<Test__c> testRecords = new List<Test__c>();
+        for (Customer__c customer : Trigger.old) {
+            Test__c testRecord = new Test__c();
+            testRecord.Name = customer.Name;
+            testRecord.Salary__c = customer.Salary__c;
+            testRecord.Income_Tax__c = customer.Income_Tax__c;
+            // Add other necessary fields if applicable
+            testRecords.add(testRecord);
+        }
+        if (!testRecords.isEmpty()) {
+            insert testRecords;
+        }
+    }
+}

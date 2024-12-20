@@ -1,0 +1,84 @@
+trigger OpportunityLineItemTrigger on OpportunityLineItem (after insert, after update, after delete, after undelete) {
+   
+   // Set to store all affected Opportunity IDs
+   
+   Set<Id> opportunityIds = new Set<Id>();
+
+    // Collect Opportunity IDs from trigger context
+    
+	if (Trigger.isInsert || Trigger.isUpdate || Trigger.isUndelete) {
+       
+	   for (OpportunityLineItem oli : Trigger.new) {
+           
+		   if (oli.OpportunityId != null) {
+               
+			   opportunityIds.add(oli.OpportunityId);
+            }
+        }
+    }
+    if (Trigger.isDelete) {
+        
+		for (OpportunityLineItem oli : Trigger.old) {
+            
+			if (oli.OpportunityId != null) {
+                
+				opportunityIds.add(oli.OpportunityId);
+            }
+        }
+    }
+
+    // If no Opportunities are affected, exit the trigger
+    
+	if (opportunityIds.isEmpty()) {
+       
+	   return;
+    }
+
+    // Query the count of Opportunity Line Items grouped by Opportunity ID
+   
+   List<AggregateResult> lineItemCounts = [
+        
+		SELECT OpportunityId, COUNT(Id) itemCount
+        
+		FROM OpportunityLineItem
+        
+		WHERE OpportunityId IN :opportunityIds
+        
+		GROUP BY OpportunityId
+    ];
+
+    // List to hold Opportunities to update
+    
+	List<Opportunity> opportunitiesToUpdate = new List<Opportunity>();
+
+    // Store the count of line items and update the custom field
+    
+	for (AggregateResult ar : lineItemCounts) {
+        
+		Opportunity opp = new Opportunity(
+           
+		   Id = (Id) ar.get('OpportunityId'),
+           
+		   Line_Item_Count__c = (Integer) ar.get('itemCount')
+        );
+        
+		opportunitiesToUpdate.add(opp);
+    }
+
+    // Set count to zero for Opportunities with no line items
+    
+	for (Id oppId : opportunityIds) {
+        
+		if (!lineItemCounts.any { (Id) ar.get('OpportunityId') == oppId }) {
+            
+			opportunitiesToUpdate.add(new Opportunity(Id = oppId, Line_Item_Count__c = 0));
+        }
+    }
+
+    // Update the Opportunity records with the new line item counts
+    
+	if (!opportunitiesToUpdate.isEmpty()) {
+        
+		update opportunitiesToUpdate;
+    }
+}

@@ -1,0 +1,31 @@
+trigger AccountDuplicateCheck on Account (before insert) {
+    // Set to store all the new Account names being inserted
+    Set<String> newAccountNames = new Set<String>();
+
+    // Collect names of Accounts being inserted
+    for (Account acc : Trigger.new) {
+        if (acc.Name != null) {
+            newAccountNames.add(acc.Name.trim());
+        }
+    }
+
+    // If there are no Account names to check, exit the trigger
+    if (newAccountNames.isEmpty()) {
+        return;
+    }
+
+    // Query existing Accounts with the same names
+    Map<String, Account> existingAccounts = new Map<String, Account>();
+    for (Account acc : [
+        SELECT Name FROM Account WHERE Name IN :newAccountNames
+    ]) {
+        existingAccounts.put(acc.Name.trim(), acc);
+    }
+
+    // Check for duplicates and add an error if found
+    for (Account acc : Trigger.new) {
+        if (acc.Name != null && existingAccounts.containsKey(acc.Name.trim())) {
+            acc.addError('An Account with this name already exists. Please use a different name.');
+        }
+    }
+}

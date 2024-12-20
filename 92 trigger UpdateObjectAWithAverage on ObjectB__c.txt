@@ -1,0 +1,64 @@
+trigger UpdateObjectAWithAverage on ObjectB__c (after insert, after update, after delete, after undelete) {
+    // Collect Object A IDs to update
+    Set<Id> objectAIds = new Set<Id>();
+    
+    // Process Trigger context records to collect relevant Object A IDs
+    if (Trigger.isInsert || Trigger.isUpdate || Trigger.isUndelete) {
+        for (ObjectB__c objB : Trigger.new) {
+            if (objB.ObjectA__c != null) {
+                objectAIds.add(objB.ObjectA__c);
+            }
+        }
+    }
+    if (Trigger.isDelete) {
+        for (ObjectB__c objB : Trigger.old) {
+            if (objB.ObjectA__c != null) {
+                objectAIds.add(objB.ObjectA__c);
+            }
+        }
+    }
+
+    // Query related Object B and Object C records
+    Map<Id, List<ObjectB__c>> objectABRecordsMap = new Map<Id, List<ObjectB__c>>();
+    if (!objectAIds.isEmpty()) {
+        for (ObjectB__c objB : [
+            SELECT ObjectA__c, Value__c, ObjectC__c,
+                   (SELECT Condition__c FROM ObjectC__r)
+            FROM ObjectB__c
+            WHERE ObjectA__c IN :objectAIds
+        ]) {
+            if (!objectABRecordsMap.containsKey(objB.ObjectA__c)) {
+                objectABRecordsMap.put(objB.ObjectA__c, new List<ObjectB__c>());
+            }
+            objectABRecordsMap.get(objB.ObjectA__c).add(objB);
+        }
+    }
+
+    // Calculate the average and update Object A
+    List<ObjectA__c> objectAUpdates = new List<ObjectA__c>();
+
+    for (Id objectAId : objectABRecordsMap.keySet()) {
+        List<ObjectB__c> relatedObjectBs = objectABRecordsMap.get(objectAId);
+        Decimal totalValue = 0;
+        Integer count = 0;
+
+        for (ObjectB__c objB : relatedObjectBs) {
+            if (objB.ObjectC__c != null && objB.ObjectC__r.Condition__c == true) {
+                totalValue += objB.Value__c;
+                count++;
+            }
+        }
+
+        Decimal averageValue = count > 0 ? totalValue / count : 0;
+
+        objectAUpdates.add(new ObjectA__c(
+            Id = objectAId,
+            Average_Value__c = averageValue
+        ));
+    }
+
+    // Perform update
+    if (!objectAUpdates.isEmpty()) {
+        update objectAUpdates;
+    }
+}

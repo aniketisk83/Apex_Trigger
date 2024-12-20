@@ -1,0 +1,40 @@
+trigger UpdateObjectBOnAandC on ObjectA__c (after update) {
+    // Collect the IDs of related Object B records
+    Set<Id> objectBIds = new Set<Id>();
+
+    // Check updated Object A records and collect related Object B IDs
+    for (ObjectA__c objA : Trigger.new) {
+        if (objA.Status__c == 'Active' && objA.ObjectB__c != null) {
+            objectBIds.add(objA.ObjectB__c);
+        }
+    }
+
+    // Query related Object C records to check their conditions
+    Map<Id, ObjectC__c> relatedObjectCs = new Map<Id, ObjectC__c>();
+    if (!objectBIds.isEmpty()) {
+        relatedObjectCs = new Map<Id, ObjectC__c>(
+            [SELECT ObjectB__c, Condition__c
+             FROM ObjectC__c
+             WHERE ObjectB__c IN :objectBIds]
+        );
+    }
+
+    // Collect Object B records to update
+    List<ObjectB__c> objectBsToUpdate = new List<ObjectB__c>();
+
+    for (Id objectBId : objectBIds) {
+        ObjectC__c objC = relatedObjectCs.get(objectBId);
+        if (objC != null && objC.Condition__c == true) {
+            // Update the Object B field
+            objectBsToUpdate.add(new ObjectB__c(
+                Id = objectBId,
+                Update_Field__c = 'Criteria Met'
+            ));
+        }
+    }
+
+    // Perform the update
+    if (!objectBsToUpdate.isEmpty()) {
+        update objectBsToUpdate;
+    }
+}

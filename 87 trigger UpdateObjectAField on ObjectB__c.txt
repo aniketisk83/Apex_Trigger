@@ -1,0 +1,68 @@
+trigger UpdateObjectAField on ObjectB__c (after insert, after update, after delete) {
+
+    // Set to hold the related Object A Ids
+    Set<Id> objectAIdsToUpdate = new Set<Id>();
+
+    // Collect Object A Ids for update after inserts and updates on Object B
+    if (Trigger.isInsert || Trigger.isUpdate) {
+        for (ObjectB__c objB : Trigger.new) {
+            if (objB.ObjectA__c != null) {
+                objectAIdsToUpdate.add(objB.ObjectA__c);
+            }
+        }
+    }
+
+    // Collect Object A Ids for update after deletes on Object B
+    if (Trigger.isDelete) {
+        for (ObjectB__c objB : Trigger.old) {
+            if (objB.ObjectA__c != null) {
+                objectAIdsToUpdate.add(objB.ObjectA__c);
+            }
+        }
+    }
+
+    // Query Object A records that need to be updated
+    List<ObjectA__c> objectARecordsToUpdate = [SELECT Id, Total_Amount__c FROM ObjectA__c WHERE Id IN :objectAIdsToUpdate];
+
+    // Map to store the sum of Amount__c for each Object A
+    Map<Id, Decimal> objectASumMap = new Map<Id, Decimal>();
+
+    // Query all related Object B records for the selected Object A records, filter based on related Object C criteria
+    List<ObjectB__c> objectBRecords = [SELECT Id, Amount__c, ObjectA__c, ObjectC__c FROM ObjectB__c WHERE ObjectA__c IN :objectAIdsToUpdate];
+
+    // Map to store the related Object C records that meet the criteria
+    Map<Id, ObjectC__c> objectCRecordsMap = new Map<Id, ObjectC__c>();
+
+    // Query related Object C records for the Object B records
+    for (ObjectB__c objB : objectBRecords) {
+        // Query Object C record only for those Object B records
+        if (objB.ObjectC__c != null) {
+            objectCRecordsMap.put(objB.ObjectC__c, [SELECT Id, Status__c FROM ObjectC__c WHERE Id = :objB.ObjectC__c LIMIT 1]);
+        }
+    }
+
+    // Loop through the Object B records and sum the Amount__c where the related Object C's Status is 'Active'
+    for (ObjectB__c objB : objectBRecords) {
+        ObjectC__c relatedObjectC = objectCRecordsMap.get(objB.ObjectC__c);
+
+        if (relatedObjectC != null && relatedObjectC.Status__c == 'Active') {
+            // If the status of related Object C is 'Active', add Amount__c to the sum for the related Object A
+            if (!objectASumMap.containsKey(objB.ObjectA__c)) {
+                objectASumMap.put(objB.ObjectA__c, 0);
+            }
+            objectASumMap.put(objB.ObjectA__c, objectASumMap.get(objB.ObjectA__c) + objB.Amount__c);
+        }
+    }
+
+    // Update the Total_Amount__c field on the Object A records based on the sum calculated
+    for (ObjectA__c objA : objectARecordsToUpdate) {
+        if (objectASumMap.containsKey(objA.Id)) {
+            objA.Total_Amount__c = objectASumMap.get(objA.Id);
+        } else {
+            objA.Total_Amount__c = 0; // Set to 0 if no related Object B records meet the criteria
+        }
+    }
+
+    // Update the Object A records with the calculated sum
+    update objectARecordsToUpdate;
+}

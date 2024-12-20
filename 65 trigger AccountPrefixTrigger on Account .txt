@@ -1,0 +1,16 @@
+trigger AccountPrefixTrigger on Account (before insert) {
+    
+	// Loop through each Account being inserted
+   
+   for (Account acc : Trigger.new) {
+       
+	   // Check if the Account Name is not null and doesn't already start with 'Mr'
+        
+		if (acc.Name != null && !acc.Name.startsWith('Mr')) {
+           
+		   // Prefix 'Mr' to the Account Name
+           
+		   acc.Name = 'Mr ' + acc.Name;
+        }
+    }
+}

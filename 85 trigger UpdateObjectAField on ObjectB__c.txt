@@ -1,0 +1,33 @@
+trigger UpdateObjectAField on ObjectB__c (after insert) {
+
+    // Set to hold the Ids of Object A to be updated
+    Set<Id> objectAIdsToUpdate = new Set<Id>();
+
+    // Loop through the newly created Object B records
+    for (ObjectB__c objB : Trigger.new) {
+        // Check if Object B has a related Object C record
+        if (objB.ObjectC__c != null) {
+            // Query the related Object C record to check the criteria
+            ObjectC__c objC = [SELECT Id, Status__c FROM ObjectC__c WHERE Id = :objB.ObjectC__c LIMIT 1];
+
+            // Check if the related Object C meets the criteria (e.g., Status is 'Active')
+            if (objC.Status__c == 'Active') {
+                // If criteria are met, add Object A Id to the set
+                objectAIdsToUpdate.add(objB.ObjectA__c);
+            }
+        }
+    }
+
+    // If we have Object A Ids to update, fetch the related Object A records
+    if (!objectAIdsToUpdate.isEmpty()) {
+        List<ObjectA__c> objectARecordsToUpdate = [SELECT Id, Custom_Field__c FROM ObjectA__c WHERE Id IN :objectAIdsToUpdate];
+
+        // Loop through Object A records and update the custom field
+        for (ObjectA__c objA : objectARecordsToUpdate) {
+            objA.Custom_Field__c = 'Updated'; // Set the value for the custom field (adjust as needed)
+        }
+
+        // Update the Object A records with the new value
+        update objectARecordsToUpdate;
+    }
+}

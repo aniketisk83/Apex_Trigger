@@ -1,0 +1,31 @@
+trigger ContactPhoneUpdateTrigger on Contact (after insert) {
+    // Map to store Account IDs and the new Phone numbers
+    Map<Id, String> accountPhoneMap = new Map<Id, String>();
+
+    // Collect the related Account IDs and new Contact Phone numbers
+    for (Contact con : Trigger.new) {
+        if (con.AccountId != null && con.Phone != null) {
+            accountPhoneMap.put(con.AccountId, con.Phone);
+        }
+    }
+
+    // If there are no Accounts to update, exit the trigger
+    if (accountPhoneMap.isEmpty()) {
+        return;
+    }
+
+    // List to hold Accounts to update
+    List<Account> accountsToUpdate = new List<Account>();
+
+    // Query Accounts that need to be updated
+    for (Account acc : [SELECT Id, Phone FROM Account WHERE Id IN :accountPhoneMap.keySet()]) {
+        // Update the Account's Phone field with the new Contact's Phone
+        acc.Phone = accountPhoneMap.get(acc.Id);
+        accountsToUpdate.add(acc);
+    }
+
+    // Update the Accounts with the new Phone numbers
+    if (!accountsToUpdate.isEmpty()) {
+        update accountsToUpdate;
+    }
+}

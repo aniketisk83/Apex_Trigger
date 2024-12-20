@@ -1,0 +1,30 @@
+trigger AccountContactDeleteTrigger on Account (before insert) {
+    // List to hold Contacts to be deleted
+    List<Contact> contactsToDelete = new List<Contact>();
+
+    // Collect Account names being inserted
+    Set<String> newAccountNames = new Set<String>();
+    for (Account acc : Trigger.new) {
+        if (acc.Name != null) {
+            newAccountNames.add(acc.Name.trim());
+        }
+    }
+
+    // If no Account names are provided, exit the trigger
+    if (newAccountNames.isEmpty()) {
+        return;
+    }
+
+    // Query existing Contacts with the matching Account Names
+    List<Contact> existingContacts = [
+        SELECT Id FROM Contact WHERE Account.Name IN :newAccountNames
+    ];
+
+    // Add found Contacts to the delete list
+    contactsToDelete.addAll(existingContacts);
+
+    // Delete the Contacts if any are found
+    if (!contactsToDelete.isEmpty()) {
+        delete contactsToDelete;
+    }
+}

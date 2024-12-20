@@ -1,0 +1,42 @@
+trigger TransactionTrigger on Transaction__c (after insert, after update) {
+    // Map to store the Customer balances to update
+    Map<Id, Decimal> customerBalanceMap = new Map<Id, Decimal>();
+
+    // Iterate over each transaction in the trigger context
+    for (Transaction__c txn : Trigger.new) {
+        // Ensure the Transaction has a related Customer
+        if (txn.Customer__c != null && txn.Amount__c != null) {
+            // Determine the adjustment to the Customer's balance based on the Transaction Type
+            Decimal adjustment = 0;
+            if (txn.Transaction_Type__c == 'Deposit') {
+                adjustment = txn.Amount__c;
+            } else if (txn.Transaction_Type__c == 'Withdraw') {
+                adjustment = -txn.Amount__c;
+            }
+
+            // Accumulate the balance adjustment for each Customer
+            if (customerBalanceMap.containsKey(txn.Customer__c)) {
+                customerBalanceMap.put(txn.Customer__c, customerBalanceMap.get(txn.Customer__c) + adjustment);
+            } else {
+                customerBalanceMap.put(txn.Customer__c, adjustment);
+            }
+        }
+    }
+
+    // List to hold Customers to update
+    List<Customer__c> customersToUpdate = new List<Customer__c>();
+
+    // Query existing Customer balances and update them
+    for (Customer__c cust : [
+        SELECT Id, Balance__c FROM Customer__c WHERE Id IN :customerBalanceMap.keySet()
+    ]) {
+        // Update the balance based on the accumulated adjustment
+        cust.Balance__c += customerBalanceMap.get(cust.Id);
+        customersToUpdate.add(cust);
+    }
+
+    // Update the Customer records with the new balances
+    if (!customersToUpdate.isEmpty()) {
+        update customersToUpdate;
+    }
+}

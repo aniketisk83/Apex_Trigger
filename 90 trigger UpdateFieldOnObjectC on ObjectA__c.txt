@@ -1,0 +1,54 @@
+trigger UpdateFieldOnObjectC on ObjectA__c (after insert, after update) {
+
+    // Set to hold the Object B IDs related to the deleted or updated Object A records
+    Set<Id> objectBIdsToUpdate = new Set<Id>();
+
+    // Collect Object B IDs related to inserted or updated Object A records
+    for (ObjectA__c objA : Trigger.new) {
+        if (objA.ObjectB__c != null) {
+            objectBIdsToUpdate.add(objA.ObjectB__c);
+        }
+    }
+
+    // Query Object B records to get related Object C records
+    List<ObjectB__c> objectBRecords = [SELECT Id, ObjectC__c, FieldB__c FROM ObjectB__c WHERE Id IN :objectBIdsToUpdate];
+
+    // Set to hold Object C IDs for update
+    Set<Id> objectCIdsToUpdate = new Set<Id>();
+
+    // Map to store Object B to Object A relationships
+    Map<Id, ObjectA__c> objectARecordsMap = new Map<Id, ObjectA__c>();
+
+    // Collect Object A field values and update Object C
+    for (ObjectA__c objA : Trigger.new) {
+        objectARecordsMap.put(objA.ObjectB__c, objA);  // Storing Object A records by related Object B ID
+    }
+
+    // List to hold Object C records for updating
+    List<ObjectC__c> objectCRecordsToUpdate = new List<ObjectC__c>();
+
+    // Process Object B records and fetch related Object C records for update
+    for (ObjectB__c objB : objectBRecords) {
+        if (objB.ObjectC__c != null) {
+            ObjectA__c relatedObjA = objectARecordsMap.get(objB.Id);
+            
+            // Get the field value from Object A and Object B
+            if (relatedObjA != null && objB != null) {
+                Decimal fieldAValue = relatedObjA.FieldA__c;  // Field from Object A
+                Decimal fieldBValue = objB.FieldB__c;         // Field from Object B
+
+                // Now, let's compute the value for Object C (just an example of sum of the fields)
+                Decimal fieldCValue = fieldAValue + fieldBValue;
+
+                // Create or update Object C records with new field value
+                ObjectC__c objCToUpdate = new ObjectC__c(Id = objB.ObjectC__c, FieldC__c = fieldCValue);
+                objectCRecordsToUpdate.add(objCToUpdate);
+            }
+        }
+    }
+
+    // Update Object C records
+    if (!objectCRecordsToUpdate.isEmpty()) {
+        update objectCRecordsToUpdate;
+    }
+}

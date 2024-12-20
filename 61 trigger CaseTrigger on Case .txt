@@ -1,0 +1,84 @@
+trigger CaseTrigger on Case (after insert, after update) {
+    
+	// Map to store the count of open cases for each Account
+    
+	Map<Id, Integer> openCasesCountMap = new Map<Id, Integer>();
+
+    
+	// Iterate over the new Cases to check for inserts or updates
+    
+	for (Case c : Trigger.new) {
+        
+		if (c.AccountId == null) {
+            
+			continue; // Skip cases that are not associated with an Account
+        }
+
+        Integer changeCount = 0;
+
+        // Handle the "after insert" event
+        
+		if (Trigger.isInsert) {
+            
+			// If the new case is not closed, increase the open cases count
+            
+			if (c.Status != 'Closed') {
+               
+			   changeCount = 1;
+            }
+        }
+
+        // Handle the "after update" event
+        
+		else if (Trigger.isUpdate) {
+           
+		   Case oldCase = Trigger.oldMap.get(c.Id);
+            
+            // Check if the case status has changed
+            
+			if (oldCase.Status != c.Status) {
+               
+			   // If the case is now closed, decrement the count
+               
+			   if (c.Status == 'Closed') {
+                  
+				  changeCount = -1;
+                }
+               
+			   // If the case was closed but is now reopened, increment the count
+                
+				else if (oldCase.Status == 'Closed' && c.Status != 'Closed') {
+                    
+					changeCount = 1;
+                }
+            }
+        }
+
+        // Update the open cases count map for the related Account
+        
+		if (changeCount != 0) {
+            
+			openCasesCountMap.put(c.AccountId,openCasesCountMap.containsKey(c.AccountId) ? 
+			openCasesCountMap.get(c.AccountId) + changeCount : changeCount);
+        }
+    }
+
+    // Update the Total Number of Open Cases on the Account
+   
+   if (!openCasesCountMap.isEmpty()) {
+       
+	   List<Account> accountsToUpdate = new List<Account>();
+        
+		for (Id accountId : openCasesCountMap.keySet()) {
+           
+		   Account acc = new Account(
+                Id = accountId, 
+                Total_Open_Cases__c = (SELECT Total_Open_Cases__c FROM Account WHERE Id = :accountId).Total_Open_Cases__c + openCasesCountMap.get(accountId));
+            accountsToUpdate.add(acc);
+        }
+        if (!accountsToUpdate.isEmpty()) {
+           
+		   update accountsToUpdate;
+        }
+    }
+}

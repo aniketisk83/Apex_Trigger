@@ -1,0 +1,30 @@
+trigger UpdateContactCount on Contact (after insert, after delete, after undelete) {
+    
+    // Set to store Account Ids to update
+    Set<Id> accountIdsToUpdate = new Set<Id>();
+
+    // Collect Account IDs from the Trigger context
+    if (Trigger.isInsert || Trigger.isUndelete) {
+        for (Contact con : Trigger.new) {
+            accountIdsToUpdate.add(con.AccountId);
+        }
+    }
+    
+    if (Trigger.isDelete) {
+        for (Contact con : Trigger.old) {
+            accountIdsToUpdate.add(con.AccountId);
+        }
+    }
+    
+    // Query the count of Contacts related to each Account
+    List<Account> accountsToUpdate = [SELECT Id, (SELECT Id FROM Contacts) FROM Account WHERE Id IN :accountIdsToUpdate];
+
+    // Loop through each Account and update the count field
+    for (Account acc : accountsToUpdate) {
+        Integer contactCount = acc.Contacts.size();
+        acc.Count_of_Contacts__c = contactCount;
+    }
+
+    // Update the Account records with the new count
+    update accountsToUpdate;
+}

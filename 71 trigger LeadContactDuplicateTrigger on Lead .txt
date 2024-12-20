@@ -1,0 +1,33 @@
+trigger LeadContactDuplicateTrigger on Lead (before insert, before update) {
+    // Create a set to store the email addresses from the Lead records
+    Set<String> leadEmails = new Set<String>();
+
+    // Loop through the Lead records being inserted or updated
+    for (Lead lead : Trigger.new) {
+        if (lead.Email != null) {
+            leadEmails.add(lead.Email.toLowerCase());  // Normalize to lower case to avoid case-sensitive issues
+        }
+    }
+
+    // If there are any email addresses to check, proceed with SOQL query
+    if (!leadEmails.isEmpty()) {
+        // Query Contacts with matching email addresses
+        List<Contact> matchingContacts = [
+            SELECT Id, Email FROM Contact WHERE Email IN :leadEmails
+        ];
+
+        // Create a map of the emails from the Contact records
+        Set<String> contactEmails = new Set<String>();
+        for (Contact con : matchingContacts) {
+            contactEmails.add(con.Email.toLowerCase());
+        }
+
+        // Loop through each Lead record and check if a matching Contact exists
+        for (Lead lead : Trigger.new) {
+            if (lead.Email != null && contactEmails.contains(lead.Email.toLowerCase())) {
+                // Prevent Lead creation or update by throwing a DML exception
+                lead.addError('A Contact with this email address already exists.');
+            }
+        }
+    }
+}

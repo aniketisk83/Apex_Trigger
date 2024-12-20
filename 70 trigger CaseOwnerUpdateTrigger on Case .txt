@@ -1,0 +1,13 @@
+trigger CaseOwnerUpdateTrigger on Case (before update) {
+    // Loop through each Case being updated
+    for (Case c : Trigger.new) {
+        // Check if the Status picklist value matches any of the specified values
+        if (c.Status == 'Priced-(Initial)' || 
+            c.Status == 'Priced-(Re-priced)' || 
+            c.Status == 'Price(File Loaded)') {
+            
+            // Set the Case Owner to the CreatedBy user (CreatedById)
+            c.OwnerId = c.CreatedById;
+        }
+    }
+}

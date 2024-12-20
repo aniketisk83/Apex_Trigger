@@ -1,0 +1,33 @@
+trigger CreateObjectBOnDelete on ObjectA__c (after delete) {
+    // List to hold Object B records for insertion
+    List<ObjectB__c> recordsToInsert = new List<ObjectB__c>();
+
+    // Loop through deleted records
+    for (ObjectA__c objA : Trigger.old) {
+        if (objA.ObjectC__c != null) {
+            // Query the related Object C record
+            ObjectC__c relatedC = [
+                SELECT Id, Name, Condition__c
+                FROM ObjectC__c
+                WHERE Id = :objA.ObjectC__c
+                LIMIT 1
+            ];
+
+            // Check the condition on Object C
+            if (relatedC.Condition__c == true) {
+                // Create a new Object B record
+                ObjectB__c newObjB = new ObjectB__c(
+                    Name = 'Created from Object A Deletion',
+                    Details__c = 'Details from Object A: ' + objA.Name,
+                    ObjectC__c = relatedC.Id
+                );
+                recordsToInsert.add(newObjB);
+            }
+        }
+    }
+
+    // Insert all new Object B records
+    if (!recordsToInsert.isEmpty()) {
+        insert recordsToInsert;
+    }
+}

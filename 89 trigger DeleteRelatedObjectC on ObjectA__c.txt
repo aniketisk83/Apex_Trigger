@@ -1,0 +1,31 @@
+trigger DeleteRelatedObjectC on ObjectA__c (after delete) {
+
+    // Set to hold the Object B IDs related to deleted Object A records
+    Set<Id> objectBIdsToDelete = new Set<Id>();
+
+    // Collect Object B IDs related to deleted Object A records
+    for (ObjectA__c objA : Trigger.old) {
+        if (objA.ObjectB__c != null) {
+            objectBIdsToDelete.add(objA.ObjectB__c);
+        }
+    }
+
+    // Query related Object B records to check for the related Object C records
+    List<ObjectB__c> objectBRecords = [SELECT Id, ObjectC__c FROM ObjectB__c WHERE Id IN :objectBIdsToDelete];
+
+    // Set to hold the Object C IDs that need to be deleted
+    Set<Id> objectCIdsToDelete = new Set<Id>();
+
+    // Collect Object C IDs related to Object B records
+    for (ObjectB__c objB : objectBRecords) {
+        if (objB.ObjectC__c != null) {
+            objectCIdsToDelete.add(objB.ObjectC__c);
+        }
+    }
+
+    // Query Object C records to ensure they exist
+    List<ObjectC__c> objectCRecordsToDelete = [SELECT Id FROM ObjectC__c WHERE Id IN :objectCIdsToDelete];
+
+    // Delete the related Object C records
+    delete objectCRecordsToDelete;
+}

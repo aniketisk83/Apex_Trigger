@@ -1,0 +1,61 @@
+trigger UpdateCaseCount on Case (after insert, after update, after delete) {
+
+    // Set to hold Contact IDs for which Case count needs to be updated
+    Set<Id> contactIdsToUpdate = new Set<Id>();
+
+    // Collect Contact IDs from the affected Cases
+    if (Trigger.isInsert || Trigger.isUpdate) {
+        for (Case cs : Trigger.new) {
+            if (cs.ContactId != null) {
+                contactIdsToUpdate.add(cs.ContactId);
+            }
+        }
+    }
+
+    if (Trigger.isDelete) {
+        for (Case cs : Trigger.old) {
+            if (cs.ContactId != null) {
+                contactIdsToUpdate.add(cs.ContactId);
+            }
+        }
+    }
+
+    // Query Contacts to get their related Cases count (filtered by Case Status)
+    List<AggregateResult> caseCounts = [
+        SELECT ContactId, COUNT(Id) 
+        FROM Case 
+        WHERE ContactId IN :contactIdsToUpdate
+        AND Status = 'Closed'  // Example condition, can be changed to other statuses
+        GROUP BY ContactId
+    ];
+
+    // Map to hold the count of Cases for each Contact
+    Map<Id, Integer> contactCaseCountMap = new Map<Id, Integer>();
+
+    // Populate the map with Case counts
+    for (AggregateResult ar : caseCounts) {
+        contactCaseCountMap.put((Id)ar.get('ContactId'), (Integer)ar.get('expr0'));
+    }
+
+    // List to hold Contact records to be updated
+    List<Contact> contactsToUpdate = new List<Contact>();
+
+    // Iterate over each Contact ID to update the Case_Count__c field
+    for (Id contactId : contactIdsToUpdate) {
+        Integer caseCount = contactCaseCountMap.get(contactId);
+        
+        // If no Case count exists for this Contact, set it to 0
+        if (caseCount == null) {
+            caseCount = 0;
+        }
+
+        // Create or update Contact with the Case count
+        Contact con = new Contact(Id = contactId, Case_Count__c = caseCount);
+        contactsToUpdate.add(con);
+    }
+
+    // Update Contacts with the new Case count
+    if (!contactsToUpdate.isEmpty()) {
+        update contactsToUpdate;
+    }
+}

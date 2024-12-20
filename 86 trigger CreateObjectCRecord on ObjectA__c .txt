@@ -1,0 +1,43 @@
+trigger CreateObjectCRecord on ObjectA__c (after update) {
+
+    // Set to hold the related Object B Ids
+    Set<Id> objectBIdsToCheck = new Set<Id>();
+
+    // Loop through the updated Object A records
+    for (ObjectA__c objA : Trigger.new) {
+        // Check if the Object A has a related Object B record
+        if (objA.ObjectB__c != null && objA.ObjectB__c != Trigger.oldMap.get(objA.Id).ObjectB__c) {
+            objectBIdsToCheck.add(objA.ObjectB__c);
+        }
+    }
+
+    // Query Object B records to check their criteria
+    Map<Id, ObjectB__c> objectBRecords = new Map<Id, ObjectB__c>([
+        SELECT Id, Status__c FROM ObjectB__c WHERE Id IN :objectBIdsToCheck
+    ]);
+
+    // List to store new Object C records
+    List<ObjectC__c> objectCRecordsToCreate = new List<ObjectC__c>();
+
+    // Loop through each updated Object A and check the condition on Object B
+    for (ObjectA__c objA : Trigger.new) {
+        // Fetch the related Object B record from the map
+        ObjectB__c relatedObjB = objectBRecords.get(objA.ObjectB__c);
+
+        // Check if Object B's status is 'Active'
+        if (relatedObjB != null && relatedObjB.Status__c == 'Active') {
+            // Create a new Object C record
+            ObjectC__c newObjC = new ObjectC__c(
+                ObjectA__c = objA.Id,  // Linking Object C to Object A
+                Name = 'New Record for ' + objA.Name  // Set other fields as required
+                // Add any other field values for Object C as needed
+            );
+            objectCRecordsToCreate.add(newObjC);
+        }
+    }
+
+    // Insert the new Object C records if any are created
+    if (!objectCRecordsToCreate.isEmpty()) {
+        insert objectCRecordsToCreate;
+    }
+}

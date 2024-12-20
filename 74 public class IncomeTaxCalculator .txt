@@ -1,0 +1,5 @@
+trigger CustomerTrigger on Customer__c (before insert, before update) {
+    if (Trigger.isBefore) {
+        IncomeTaxCalculator.calculateIncomeTax(Trigger.new);
+    }
+}

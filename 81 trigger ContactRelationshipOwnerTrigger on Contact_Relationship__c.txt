@@ -1,0 +1,26 @@
+trigger ContactRelationshipOwnerTrigger on Contact_Relationship__c (after update) {
+    // List to hold Contact Relationship records to update
+    List<Contact_Relationship__c> relationshipsToUpdate = new List<Contact_Relationship__c>();
+
+    // Iterate over the updated Contact Relationship records
+    for (Contact_Relationship__c relationship : Trigger.new) {
+        Contact_Relationship__c oldRelationship = Trigger.oldMap.get(relationship.Id);
+
+        // Check if the owner has been changed
+        if (relationship.OwnerId != oldRelationship.OwnerId) {
+            // Query for the new owner's name
+            User newOwner = [SELECT Name FROM User WHERE Id = :relationship.OwnerId LIMIT 1];
+
+            // Update the Name field with the new owner's name
+            relationship.Name = newOwner.Name + ' Relationship';  // You can format the name as per your needs
+
+            // Add the record to the list for updating
+            relationshipsToUpdate.add(relationship);
+        }
+    }
+
+    // Update the Contact Relationship records if necessary
+    if (!relationshipsToUpdate.isEmpty()) {
+        update relationshipsToUpdate;
+    }
+}

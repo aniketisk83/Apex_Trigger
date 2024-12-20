@@ -1,0 +1,32 @@
+trigger AssignLeadDefaultOwner on Lead (before insert) {
+    // Collect unique countries from the leads being inserted
+    Set<String> leadCountries = new Set<String>();
+    for (Lead lead : Trigger.new) {
+        if (String.isNotBlank(lead.Country)) {
+            leadCountries.add(lead.Country);
+        }
+    }
+
+    // Query the Region_Assignment__c records for the relevant countries
+    Map<String, Id> countryToOwnerMap = new Map<String, Id>();
+    if (!leadCountries.isEmpty()) {
+        List<Region_Assignment__c> regionAssignments = [
+            SELECT Country__c, Default_Owner__c
+            FROM Region_Assignment__c
+            WHERE Country__c IN :leadCountries
+        ];
+
+        for (Region_Assignment__c assignment : regionAssignments) {
+            if (assignment.Default_Owner__c != null) {
+                countryToOwnerMap.put(assignment.Country__c, assignment.Default_Owner__c);
+            }
+        }
+    }
+
+    // Assign the default owner to the leads based on their country
+    for (Lead lead : Trigger.new) {
+        if (String.isNotBlank(lead.Country) && countryToOwnerMap.containsKey(lead.Country)) {
+            lead.OwnerId = countryToOwnerMap.get(lead.Country);
+        }
+    }
+}

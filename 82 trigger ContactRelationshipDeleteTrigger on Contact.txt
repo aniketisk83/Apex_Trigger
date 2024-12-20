@@ -1,0 +1,16 @@
+trigger ContactRelationshipDeleteTrigger on Contact (after delete) {
+    // Collect the Ids of the Contacts that have been deleted
+    Set<Id> deletedContactIds = new Set<Id>();
+
+    for (Contact con : Trigger.old) {
+        deletedContactIds.add(con.Id);
+    }
+
+    // Query the related Contact Relationship records
+    List<Contact_Relationship__c> relationshipsToDelete = [SELECT Id FROM Contact_Relationship__c WHERE Contact__c IN :deletedContactIds];
+
+    // Delete the related Contact Relationship records
+    if (!relationshipsToDelete.isEmpty()) {
+        delete relationshipsToDelete;
+    }
+}

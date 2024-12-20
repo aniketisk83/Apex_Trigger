@@ -1,0 +1,60 @@
+trigger UpdateContactCount on Contact (after insert, after update, after delete) {
+
+    // Set to hold Account IDs for which Contact count needs to be updated
+    Set<Id> accountIdsToUpdate = new Set<Id>();
+
+    // Collect Account IDs from the affected Contacts
+    if (Trigger.isInsert || Trigger.isUpdate) {
+        for (Contact con : Trigger.new) {
+            if (con.AccountId != null) {
+                accountIdsToUpdate.add(con.AccountId);
+            }
+        }
+    }
+
+    if (Trigger.isDelete) {
+        for (Contact con : Trigger.old) {
+            if (con.AccountId != null) {
+                accountIdsToUpdate.add(con.AccountId);
+            }
+        }
+    }
+
+    // Query Accounts to get their related Contacts count
+    List<AggregateResult> contactCounts = [
+        SELECT AccountId, COUNT(Id) 
+        FROM Contact 
+        WHERE AccountId IN :accountIdsToUpdate
+        GROUP BY AccountId
+    ];
+
+    // Map to hold the count of Contacts for each Account
+    Map<Id, Integer> accountContactCountMap = new Map<Id, Integer>();
+
+    // Populate the map with Contact counts
+    for (AggregateResult ar : contactCounts) {
+        accountContactCountMap.put((Id)ar.get('AccountId'), (Integer)ar.get('expr0'));
+    }
+
+    // List to hold Account records to be updated
+    List<Account> accountsToUpdate = new List<Account>();
+
+    // Iterate over each Account ID to update the Contact_Count__c field
+    for (Id accountId : accountIdsToUpdate) {
+        Integer contactCount = accountContactCountMap.get(accountId);
+        
+        // If no Contact count exists for this Account, set it to 0
+        if (contactCount == null) {
+            contactCount = 0;
+        }
+
+        // Create or update Account with the Contact count
+        Account acc = new Account(Id = accountId, Contact_Count__c = contactCount);
+        accountsToUpdate.add(acc);
+    }
+
+    // Update Accounts with the new Contact count
+    if (!accountsToUpdate.isEmpty()) {
+        update accountsToUpdate;
+    }
+}

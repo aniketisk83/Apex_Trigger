@@ -1,0 +1,79 @@
+trigger OpportunityTrigger on Opportunity (after insert, after update, after delete, after undelete) {
+    
+	// Set to store all affected Account IDs
+   
+   Set<Id> accountIds = new Set<Id>();
+
+    // Collect Account IDs from trigger context
+    
+	if (Trigger.isInsert || Trigger.isUpdate || Trigger.isUndelete) {
+       
+	   for (Opportunity opp : Trigger.new) {
+         
+		 if (opp.AccountId != null) {
+              
+			  accountIds.add(opp.AccountId);
+            }
+        }
+    }
+   
+   if (Trigger.isDelete) {
+       
+	   for (Opportunity opp : Trigger.old) {
+          
+		  if (opp.AccountId != null) {
+             
+			 accountIds.add(opp.AccountId);
+            }
+        }
+    }
+
+    // If there are no affected Accounts, exit the trigger
+   
+   if (accountIds.isEmpty()) {
+        
+		return;
+    }
+
+    // Query to sum up the amount of Opportunities in "Proposal" or "Negotiation" stage grouped by Account
+    
+	List<AggregateResult> opportunitySums = [
+        
+		SELECT AccountId, SUM(Amount) totalAmount
+        
+		FROM Opportunity
+        
+		WHERE AccountId IN :accountIds
+       
+	   AND StageName IN ('Proposal', 'Negotiation')
+        
+		GROUP BY AccountId
+    ];
+
+    // List to hold Accounts to update
+    
+	List<Account> accountsToUpdate = new List<Account>();
+
+
+    // Store the total value for each Account
+    
+	for (AggregateResult ar : opportunitySums) {
+        Account acc = new Account(
+            Id = (Id) ar.get('AccountId'),
+            Total_Proposal_Value__c = (Decimal) ar.get('totalAmount')
+        );
+        accountsToUpdate.add(acc);
+    }
+
+    // For Accounts with no qualifying Opportunities, set the total value to zero
+    for (Id accId : accountIds) {
+        if (!opportunitySums.any { (Id) ar.get('AccountId') == accId }) {
+            accountsToUpdate.add(new Account(Id = accId, Total_Proposal_Value__c = 0));
+        }
+    }
+
+    // Update the Account records with the new total values
+    if (!accountsToUpdate.isEmpty()) {
+        update accountsToUpdate;
+    }
+}

@@ -1,0 +1,52 @@
+trigger UpdateContactTotalClosedWon on Opportunity (after insert, after update, after delete, after undelete) {
+
+    // Set to collect unique Contact IDs related to the opportunities
+    Set<Id> contactIds = new Set<Id>();
+
+    // Collect Contact IDs based on Trigger Context
+    if (Trigger.isInsert || Trigger.isUpdate || Trigger.isUndelete) {
+        for (Opportunity opp : Trigger.new) {
+            if (opp.ContactId != null) {
+                contactIds.add(opp.ContactId);
+            }
+        }
+    }
+
+    if (Trigger.isDelete) {
+        for (Opportunity opp : Trigger.old) {
+            if (opp.ContactId != null) {
+                contactIds.add(opp.ContactId);
+            }
+        }
+    }
+
+    // Calculate the total closed won value for each contact
+    if (!contactIds.isEmpty()) {
+        Map<Id, Decimal> contactTotalMap = new Map<Id, Decimal>();
+
+        List<AggregateResult> results = [
+            SELECT ContactId, SUM(Amount) totalAmount
+            FROM Opportunity
+            WHERE ContactId IN :contactIds AND StageName = 'Closed Won'
+            GROUP BY ContactId
+        ];
+
+        for (AggregateResult result : results) {
+            Id contactId = (Id)result.get('ContactId');
+            Decimal totalAmount = (Decimal)result.get('totalAmount');
+            contactTotalMap.put(contactId, totalAmount);
+        }
+
+        // Prepare Contact records for update
+        List<Contact> contactsToUpdate = new List<Contact>();
+        for (Id contactId : contactIds) {
+            Decimal totalValue = contactTotalMap.getOrDefault(contactId, 0);
+            contactsToUpdate.add(new Contact(Id = contactId, Total_Closed_Won_Value__c = totalValue));
+        }
+
+        // Perform the update
+        if (!contactsToUpdate.isEmpty()) {
+            update contactsToUpdate;
+        }
+    }
+}

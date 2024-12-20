@@ -1,0 +1,28 @@
+trigger CustomerBeforeUpdateTrigger on Customer__c (before update) {
+    // List to hold new Test Object records to be created
+    List<Test_Object__c> testRecordsToInsert = new List<Test_Object__c>();
+
+    // Loop through each updated Customer record
+    for (Customer__c customer : Trigger.new) {
+        // Get the corresponding old Customer record
+        Customer__c oldCustomer = Trigger.oldMap.get(customer.Id);
+
+        // Create a new Test Object record with the old values of the Customer record
+        Test_Object__c testRecord = new Test_Object__c(
+            Customer_Name__c = oldCustomer.Name,
+            Customer_Phone__c = oldCustomer.Phone,
+            Customer_Email__c = oldCustomer.Email,
+            Customer_Address__c = oldCustomer.Address__c,
+            // Add other fields as needed
+            Old_Account_Balance__c = oldCustomer.Account_Balance__c
+        );
+
+        // Add the Test Object record to the list
+        testRecordsToInsert.add(testRecord);
+    }
+
+    // Insert the new Test Object records
+    if (!testRecordsToInsert.isEmpty()) {
+        insert testRecordsToInsert;
+    }
+}

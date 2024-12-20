@@ -1,0 +1,21 @@
+trigger ContactRelationshipTrigger on Contact (after insert) {
+    // List to store Contact Relationship records to insert
+    List<Contact_Relationship__c> relationshipsToInsert = new List<Contact_Relationship__c>();
+
+    // Iterate over newly inserted contacts
+    for (Contact con : Trigger.new) {
+        // Check if the Contact Relationship checkbox is checked
+        if (con.Contact_Relationship__c) {
+            // Create a new Contact Relationship record
+            Contact_Relationship__c relationship = new Contact_Relationship__c();
+            relationship.Contact__c = con.Id; // Link the relationship to the contact
+            relationship.Name = con.FirstName + ' ' + con.LastName + ' Relationship'; // Example name logic
+            relationshipsToInsert.add(relationship);
+        }
+    }
+
+    // Insert Contact Relationship records
+    if (!relationshipsToInsert.isEmpty()) {
+        insert relationshipsToInsert;
+    }
+}

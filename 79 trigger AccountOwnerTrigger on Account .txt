@@ -1,0 +1,21 @@
+trigger AccountOwnerTrigger on Account (before insert, before update) {
+    // Collect all Owner IDs
+    Set<Id> ownerIds = new Set<Id>();
+    for (Account acc : Trigger.new) {
+        if (acc.OwnerId != null) {
+            ownerIds.add(acc.OwnerId);
+        }
+    }
+
+    // Query all Owners in bulk
+    Map<Id, User> ownerMap = new Map<Id, User>(
+        [SELECT Id, Name FROM User WHERE Id IN :ownerIds]
+    );
+
+    // Assign Sales Rep
+    for (Account acc : Trigger.new) {
+        if (acc.OwnerId != null && ownerMap.containsKey(acc.OwnerId)) {
+            acc.Sales_Rep__c = ownerMap.get(acc.OwnerId).Name;
+        }
+    }
+}

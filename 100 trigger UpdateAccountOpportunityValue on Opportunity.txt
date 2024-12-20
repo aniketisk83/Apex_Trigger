@@ -1,0 +1,60 @@
+trigger UpdateAccountOpportunityValue on Opportunity (after insert, after update, after delete) {
+
+    // Set to hold Account IDs for which Opportunity total value needs to be updated
+    Set<Id> accountIdsToUpdate = new Set<Id>();
+
+    // Collect Account IDs from the affected Opportunities
+    if (Trigger.isInsert || Trigger.isUpdate) {
+        for (Opportunity opp : Trigger.new) {
+            if (opp.AccountId != null) {
+                accountIdsToUpdate.add(opp.AccountId);
+            }
+        }
+    }
+
+    if (Trigger.isDelete) {
+        for (Opportunity opp : Trigger.old) {
+            if (opp.AccountId != null) {
+                accountIdsToUpdate.add(opp.AccountId);
+            }
+        }
+    }
+
+    // Query Accounts to get the sum of Opportunity Amounts for each Account
+    List<AggregateResult> opportunitySums = [
+        SELECT AccountId, SUM(Amount) 
+        FROM Opportunity 
+        WHERE AccountId IN :accountIdsToUpdate
+        GROUP BY AccountId
+    ];
+
+    // Map to hold the total Opportunity value for each Account
+    Map<Id, Decimal> accountOpportunityValueMap = new Map<Id, Decimal>();
+
+    // Populate the map with the total Opportunity value
+    for (AggregateResult ar : opportunitySums) {
+        accountOpportunityValueMap.put((Id)ar.get('AccountId'), (Decimal)ar.get('expr0'));
+    }
+
+    // List to hold Account records to be updated
+    List<Account> accountsToUpdate = new List<Account>();
+
+    // Iterate over each Account ID to update the Total_Opportunity_Value__c field
+    for (Id accountId : accountIdsToUpdate) {
+        Decimal opportunitySum = accountOpportunityValueMap.get(accountId);
+        
+        // If no Opportunity value exists for this Account, set it to 0
+        if (opportunitySum == null) {
+            opportunitySum = 0;
+        }
+
+        // Create or update Account with the new total Opportunity value
+        Account acc = new Account(Id = accountId, Total_Opportunity_Value__c = opportunitySum);
+        accountsToUpdate.add(acc);
+    }
+
+    // Update Accounts with the new total Opportunity value
+    if (!accountsToUpdate.isEmpty()) {
+        update accountsToUpdate;
+    }
+}

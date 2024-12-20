@@ -1,0 +1,19 @@
+trigger SetCloseDateForProspecting on Opportunity (before insert, before update) {
+    
+	// Loop through all Opportunities in the trigger context
+    
+	for (Opportunity opp : Trigger.new) {
+       
+	   // Check if the Opportunity Stage is 'Prospecting'
+       
+	   if (opp.StageName == 'Prospecting') {
+          
+		  // If Close Date is not already set, set it to 30 days after Created Date
+            
+			if (opp.CloseDate == null) {
+              
+			  opp.CloseDate = opp.CreatedDate.addDays(30);
+            }
+        }
+    }
+}

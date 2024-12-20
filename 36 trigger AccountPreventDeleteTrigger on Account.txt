@@ -1,0 +1,16 @@
+trigger AccountPreventDeleteTrigger on Account (before delete) {
+  
+  // Loop through accounts that are being deleted
+   
+   for (Account acc : Trigger.old) {
+      
+	  // Check if the Account is marked as Active ('Yes')
+       
+	   if (acc.Active__c == 'Yes') {
+           
+		   // Prevent deletion by adding an error
+           
+		   acc.addError('This account cannot be deleted because it is Active.');
+        }
+    }
+}

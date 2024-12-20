@@ -1,0 +1,38 @@
+trigger ValidateAccountTypeOnContact on Contact (before insert) {
+  
+  // Collect Account Ids of the Contacts being inserted
+   
+   Set<Id> accountIds = new Set<Id>();
+
+   
+   // Loop through the Contacts to get the AccountId
+    
+	for (Contact con : Trigger.new) {
+      
+	  if (con.AccountId != null) {
+           
+		   accountIds.add(con.AccountId);
+        }
+    }
+
+    // Query the related Accounts to check the Type field
+   
+   Map<Id, Account> accountsMap = new Map<Id, Account>( [SELECT Id, Type FROM Account WHERE Id IN :accountIds]);
+
+    // Loop through Contacts and check if the related Account's Type is "Industry"
+    
+	for (Contact con : Trigger.new) {
+        
+		if (con.AccountId != null) {
+          
+		  Account relatedAccount = accountsMap.get(con.AccountId);
+           
+		   if (relatedAccount != null && relatedAccount.Type == 'Industry') {
+               
+			   // Throw an error if the Account Type is "Industry"
+               
+			   con.addError('Select a different Account Type. "Industry" accounts are not allowed.');
+            }
+        }
+    }
+}

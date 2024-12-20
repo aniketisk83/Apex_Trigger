@@ -1,0 +1,16 @@
+trigger PreventOpportunityUpdateClosedWonTrigger on Opportunity (before update) {
+  
+  // Loop through the opportunities being updated
+   
+   for (Opportunity opp : Trigger.new) {
+        
+		// Check if the stage is "Closed Won" and if it was not already "Closed Won"
+        
+		if (opp.StageName == 'Closed Won' && Trigger.oldMap.get(opp.Id).StageName != 'Closed Won') {
+           
+		   // Add an error to prevent updates if the stage is "Closed Won"
+           
+		   opp.addError('You cannot update this Opportunity because its stage is set to "Closed Won".');
+        }
+    }
+}

@@ -1,0 +1,31 @@
+trigger CreateFollowUpTaskOnLeadCreation on Lead (after insert) {
+   
+   // List to hold Tasks to be created
+    
+	List<Task> tasksToCreate = new List<Task>();
+
+    // Loop through the new Leads
+    
+	for (Lead newLead : Trigger.New) {
+      
+	  // Create a follow-up Task for each Lead
+      
+	  Task followUpTask = new Task(
+           
+		  Subject = 'Follow Up the Lead',
+            Description = 'Please follow up with this new lead.',
+            OwnerId = newLead.OwnerId, // Assign the task to the Lead owner
+            WhoId = newLead.Id, // Relate the task to the Lead
+            Status = 'Not Started',
+            Priority = 'High');
+
+        tasksToCreate.add(followUpTask);
+    }
+
+    // Insert all tasks if there are any to create
+    
+	if (!tasksToCreate.isEmpty()) {
+       
+	   insert tasksToCreate;
+    }
+}

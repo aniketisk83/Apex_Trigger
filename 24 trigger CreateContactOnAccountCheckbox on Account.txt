@@ -1,0 +1,29 @@
+trigger CreateContactOnAccountCheckbox on Account (after update) {
+    
+	// List to hold Contacts to be created
+    
+	List<Contact> contactsToCreate = new List<Contact>();
+
+    // Loop through the updated Accounts
+    
+	for (Account acc : Trigger.New) {
+       
+	   // Check if the Create_Contact__c checkbox is checked and was previously unchecked
+        
+		if (acc.Create_Contact__c == true && Trigger.oldMap.get(acc.Id).Create_Contact__c == false) {
+          
+		  // Create a new Contact with the same phone number as the Account
+           
+		   Contact newContact = new Contact(FirstName = 'New',LastName = acc.Name + ' Contact', // Default LastName based on Account namePhone = acc.Phone,AccountId = acc.Id);
+
+            contactsToCreate.add(newContact);
+        }
+    }
+
+    // Insert all new contacts if there are any to create
+    
+	if (!contactsToCreate.isEmpty()) {
+        
+		insert contactsToCreate;
+    }
+}

@@ -1,0 +1,20 @@
+trigger AccountInsertSystemAdminOnlyTrigger on Account (before insert) {
+   
+   // Get the current user's profile name
+    
+	String userProfileName = [SELECT Profile.Name FROM User WHERE Id = :UserInfo.getUserId()].Profile.Name;
+
+    // Check if the current user's profile is "System Administrator"
+    
+	if (userProfileName != 'System Administrator') {
+       
+	    // Loop through the new Account records
+        
+		for (Account acc : Trigger.new) {
+           
+		   // Add an error to prevent insertion if the user is not a system admin
+            
+			acc.addError('Only users with the "System Administrator" profile can insert Account records.');
+        }
+    }
+}

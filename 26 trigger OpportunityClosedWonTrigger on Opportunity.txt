@@ -1,0 +1,36 @@
+trigger OpportunityClosedWonTrigger on Opportunity (after update) {
+    
+	// Loop through the updated opportunities
+    
+	for (Opportunity opp : Trigger.new) {
+        
+		// Check if the Opportunity stage is "Closed Won" and it wasn't previously "Closed Won"
+        
+		if (opp.StageName == 'Closed Won' && Trigger.oldMap.get(opp.Id).StageName != 'Closed Won') {
+            
+           
+		   // Create a Task for the Opportunity Owner
+            
+			Task newTask = new Task();
+            
+			newTask.OwnerId = opp.OwnerId; // Assign the task to the Opportunity owner
+            
+			newTask.WhatId = opp.Id; // Link the task to the Opportunity
+            
+			newTask.Subject = 'Split Revenue Among the Team';
+           
+		   newTask.Priority = 'High';
+           
+		   newTask.Status = 'Not Started';
+            
+			newTask.Description = 'Please split the revenue among the team members.';
+            
+			newTask.ActivityDate = Date.today(); // Set the due date as today
+            
+            
+			// Insert the task
+            
+			insert newTask;
+        }
+    }
+}

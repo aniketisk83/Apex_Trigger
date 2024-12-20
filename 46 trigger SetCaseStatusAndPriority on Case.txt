@@ -1,0 +1,20 @@
+trigger SetCaseStatusAndPriority on Case (before insert) {
+  
+  // Loop through all the cases being created
+   
+   for (Case c : Trigger.new) {
+      
+	  // Check if the case origin is "Email"
+       
+	   if (c.Origin == 'Email') {
+         
+		 // Set the Status to "New"
+           
+		   c.Status = 'New';
+            
+			// Set the Priority to "Medium"
+           
+		   c.Priority = 'Medium';
+        }
+    }
+}

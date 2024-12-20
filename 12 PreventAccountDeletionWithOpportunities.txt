@@ -1,0 +1,27 @@
+trigger PreventAccountDeletionWithOpportunities on Account (before delete) {
+   
+   // Step 1: Collect Account IDs from the records being deleted
+   
+   Set<Id> accountIds = new Set<Id>();
+   
+   for (Account acc : Trigger.old) {
+       
+	   accountIds.add(acc.Id);
+    }
+
+    // Step 2: Query to check if there are any related Opportunities
+    
+	Integer opportunityCount = [SELECT COUNT() FROM Opportunity WHERE AccountId IN :accountIds];
+
+    // Step 3: Prevent deletion if there are related Opportunities
+    
+	if (opportunityCount > 0) {
+       
+	   // Loop through the Accounts being deleted and add an error
+        
+		for (Account acc : Trigger.old) {
+           
+		   acc.addError('You cannot delete this Account because it has related Opportunities.');
+        }
+    }
+}

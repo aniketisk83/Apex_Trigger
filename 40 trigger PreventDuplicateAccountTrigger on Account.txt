@@ -1,0 +1,32 @@
+trigger PreventDuplicateAccountTrigger on Account (before insert) {
+  
+  // Set to collect Account names for comparison
+    
+	Set<String> accountNames = new Set<String>();
+    
+    // Add all Account Names from the new records to the Set
+    
+	for (Account acc : Trigger.new) {
+       
+	   accountNames.add(acc.Name);
+    }
+    
+    // Query for existing Accounts with the same name
+    
+	List<Account> existingAccounts = [SELECT Id, Name FROM Account WHERE Name IN :accountNames];
+    
+    // Loop through newly inserted Accounts to check for duplicates
+    
+	for (Account acc : Trigger.new) {
+        
+		for (Account existingAcc : existingAccounts) {
+          
+		  // If an Account with the same Name exists, add an error to prevent insert
+            
+			if (acc.Name == existingAcc.Name) {
+                
+				acc.addError('An Account with the name "' + acc.Name + '" already exists.');
+            }
+        }
+    }
+}

@@ -1,0 +1,43 @@
+trigger CreateTaskOnCaseCreation on Case (after insert) {
+    
+	List<Task> tasksToCreate = new List<Task>();
+
+    // Loop through the new cases
+    
+	for (Case newCase : Trigger.New) {
+       
+	   // Check if the case is related to an Account
+        
+		if(newCase.AccountId != null) {
+            
+			
+			Account relatedAccount = [SELECT OwnerId FROM Account WHERE Id = :newCase.AccountId LIMIT 1];
+
+            // Create a new Task for the Account owner
+            
+			Task followUpTask = new Task(
+               
+			   Subject = 'Follow-up on New Case',
+               
+			   Description = 'A new case has been created. Please follow up with the account.',
+                
+				OwnerId = relatedAccount.OwnerId,
+               
+			   WhatId = newCase.AccountId, // Relating the task to the Account
+                
+				Status = 'Not Started',
+                
+				Priority = 'High'
+            );
+            
+            tasksToCreate.add(followUpTask);
+        }
+    }
+
+    // Insert all tasks if there are any to create
+   
+   if (!tasksToCreate.isEmpty()) {
+       
+	   insert tasksToCreate;
+    }
+}

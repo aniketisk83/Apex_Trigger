@@ -1,0 +1,70 @@
+trigger UpdateAccountTotalContacts on Contact (after insert, after update, after delete) {
+    
+	// Set to store Account IDs that need to be updated
+    
+	Set<Id> accountIdsToUpdate = new Set<Id>();
+
+    // Collect Account IDs of Contacts being inserted, updated, or deleted
+   
+   if (Trigger.isInsert) {
+       
+	   for (Contact c : Trigger.new) {
+          
+		  if (c.AccountId != null) {
+              
+			  accountIdsToUpdate.add(c.AccountId);
+            }
+        }
+    }
+
+    if (Trigger.isUpdate) {
+        
+		for (Contact c : Trigger.new) {
+            
+			if (c.AccountId != null) {
+               
+			   accountIdsToUpdate.add(c.AccountId);
+            }
+        }
+    }
+
+    if (Trigger.isDelete) {
+        
+		for (Contact c : Trigger.old) {
+            
+			if (c.AccountId != null) {
+               
+			   accountIdsToUpdate.add(c.AccountId);
+            }
+        }
+    }
+
+    // Query to get the count of Contacts for each Account
+    
+	Map<Id, Integer> accountContactCountMap = new Map<Id, Integer>();
+
+    for (AggregateResult ar : [SELECT AccountId, COUNT(Id) totalContactsFROM Contact WHERE AccountId IN :accountIdsToUpdateGROUP BY AccountId]) {
+       
+	   accountContactCountMap.put((Id)ar.get('AccountId'), (Integer)ar.get('totalContacts'));
+    }
+
+    // List to hold Account updates
+    
+	List<Account> accountsToUpdate = new List<Account>();
+
+    // Update the Total Contacts field on the Account
+    
+	for (Id accountId : accountIdsToUpdate) {
+       
+	   Integer totalContacts = accountContactCountMap.containsKey(accountId) ? accountContactCountMap.get(accountId) : 0;
+        
+		accountsToUpdate.add(new Account(Id = accountId,Total_Contacts__c = totalContacts));
+    }
+
+    // Update the Account records
+    
+	if (!accountsToUpdate.isEmpty()) {
+      
+	  update accountsToUpdate;
+    }
+}

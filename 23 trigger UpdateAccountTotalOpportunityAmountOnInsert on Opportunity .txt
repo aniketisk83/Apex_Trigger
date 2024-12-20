@@ -1,0 +1,48 @@
+trigger UpdateAccountTotalOpportunityAmountOnInsert on Opportunity (after insert) {
+   
+   // Set to hold Account IDs that need to be updated
+    
+	Set<Id> accountIdsToUpdate = new Set<Id>();
+
+    // Collect Account IDs from the newly inserted opportunities
+    
+	for (Opportunity opp : Trigger.New) {
+      
+	  if (opp.AccountId != null) {
+         
+		 accountIdsToUpdate.add(opp.AccountId);
+        }
+    }
+
+    // Now process each account to update the Total Opportunity Amount
+    
+	if (!accountIdsToUpdate.isEmpty()) {
+       
+	   // Query for accounts and sum up all active opportunity amounts related to each account
+       
+	   List<Account> accountsToUpdate = [SELECT Id, Total_Opportunity_Amount__c,(SELECT Amount FROM Opportunities WHERE IsDeleted = FALSE)FROM AccountWHERE Id IN :accountIdsToUpdate];
+
+        // Loop through accounts and recalculate the total opportunity amount
+       
+	   for (Account acc : accountsToUpdate) {
+          
+		  Decimal totalOpportunityAmount = 0;
+
+            // Sum the opportunity amounts for active (not deleted) opportunities
+           
+		   for (Opportunity opp : acc.Opportunities) {
+            
+			totalOpportunityAmount += opp.Amount != null ? opp.Amount : 0;
+            
+			}
+
+            // Update the Total Opportunity Amount field on Account
+           
+		   acc.Total_Opportunity_Amount__c = totalOpportunityAmount;
+        }
+
+        // Update accounts with the recalculated Total Opportunity Amount
+        
+		update accountsToUpdate;
+    }
+}

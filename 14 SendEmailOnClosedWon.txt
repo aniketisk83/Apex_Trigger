@@ -1,0 +1,37 @@
+trigger SendEmailOnClosedWon on Opportunity (after update) {
+    
+	// List to store email messages to send
+   
+   List<Messaging.SingleEmailMessage> emailMessages = new List<Messaging.SingleEmailMessage>();
+
+    // Loop through all Opportunities being updated
+    
+	for (Opportunity opp : Trigger.new) {
+       
+	   // Check if the Stage has changed to 'Closed Won' and if it was not already in 'Closed Won'
+        
+		if (opp.StageName == 'Closed Won' && Trigger.oldMap.get(opp.Id).StageName != 'Closed Won') {
+           
+		   // Create the email message
+           
+		   Messaging.SingleEmailMessage email = new Messaging.SingleEmailMessage();
+            
+			email.setToAddresses(new String[] {opp.Owner.Email}); // Send to Opportunity Owner
+            
+			email.setSubject('Congratulations! Opportunity Closed Won');
+            
+			email.setPlainTextBody('Dear ' + opp.Owner.Name + ',\n\n' +'Congratulations! The Opportunity "' + opp.Name + '" has been marked as "Closed Won".\n' +'This is a great achievement.\n\n' + 'Best regards,\nYour Salesforce System');
+            
+            // Add the email to the list
+            
+			emailMessages.add(email);
+        }
+    }
+
+    // Send the email messages if there are any
+    
+	if (!emailMessages.isEmpty()) {
+        
+		Messaging.sendEmail(emailMessages);
+    }
+}

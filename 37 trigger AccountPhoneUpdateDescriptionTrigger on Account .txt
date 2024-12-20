@@ -1,0 +1,16 @@
+trigger AccountPhoneUpdateDescriptionTrigger on Account (before update) {
+    
+	// Loop through the accounts being updated
+    
+	for (Account acc : Trigger.new) {
+      
+	  // Check if the phone number has changed
+        
+		if (acc.Phone != Trigger.oldMap.get(acc.Id).Phone) {
+          
+		  // Update the Description with the old and new phone numbers
+           
+		   acc.Description = 'Old Phone: ' + Trigger.oldMap.get(acc.Id).Phone + ' | New Phone: ' + acc.Phone;
+        }
+    }
+}

@@ -1,0 +1,23 @@
+trigger ValidateLeadEmail on Lead (before insert, before update) {
+   
+   // Regular expression to validate email format (basic validation)
+   
+   String emailPattern = '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$';
+    
+	// Loop through all the Lead records being inserted or updated
+    
+	for (Lead l : Trigger.new) {
+       
+	   if (l.Email != null) {
+          
+		  // Validate if the Email field matches the pattern
+           
+		   if (!l.Email.matches(emailPattern)) {
+              
+			  // Add an error message to the Email field if it doesn't match the pattern
+              
+			  l.Email.addError('Email address must be in a valid format (e.g., example@domain.com).');
+            }
+        }
+    }
+}

@@ -1,0 +1,16 @@
+trigger PreventAccountDeletion ifParentExists on Account (before delete) {
+   
+   // Loop through all the accounts to be deleted
+   
+   for (Account acc : Trigger.old) {
+       
+	   // Check if the account has a parent account (ParentId is not null)
+       
+	   if (acc.ParentId != null) {
+           
+		   // Prevent the deletion and raise an error
+           
+		   acc.addError('Account cannot be deleted because it has a parent account.');
+        }
+    }
+}

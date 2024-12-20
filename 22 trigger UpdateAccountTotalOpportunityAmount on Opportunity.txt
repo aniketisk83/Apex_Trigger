@@ -1,0 +1,72 @@
+trigger UpdateAccountTotalOpportunityAmount on Opportunity (after update, after delete, after undelete) {
+    
+	// Set to hold Account Ids that need to be updated
+  
+  Set<Id> accountIdsToUpdate = new Set<Id>();
+
+    // Check for Account IDs that need to be updated based on the trigger events
+    
+	if (Trigger.isUpdate) {
+       
+	   // Loop through updated opportunities
+       
+	   for (Opportunity opp : Trigger.New) {
+          
+		  // If AccountId has changed or Opportunity Amount has changed, add the related Account to the update list
+           
+		   if (opp.AccountId != null) {
+             
+			 accountIdsToUpdate.add(opp.AccountId);
+            }
+        }
+    } 
+	else if (Trigger.isDelete) {
+        
+		// Loop through deleted opportunities
+       
+	   for (Opportunity opp : Trigger.Old) {
+           
+		   if (opp.AccountId != null) {
+             
+			 accountIdsToUpdate.add(opp.AccountId);
+            }
+        }
+    } 
+	else if (Trigger.isUndelete) {
+       
+	   // Loop through undeleted opportunities
+        
+		for (Opportunity opp : Trigger.New) {
+            
+			if (opp.AccountId != null) {
+            
+			accountIdsToUpdate.add(opp.AccountId);
+            }
+        }
+    }
+
+    // Now process each account to update Total Opportunity Amount
+    if (!accountIdsToUpdate.isEmpty()) {
+        // Query for opportunities related to the accounts that need an update
+        List<Account> accountsToUpdate = [SELECT Id, Total_Opportunity_Amount__c,
+                                          (SELECT Amount FROM Opportunities WHERE IsDeleted = FALSE)
+                                          FROM Account
+                                          WHERE Id IN :accountIdsToUpdate];
+
+        // Loop through accounts and recalculate the total opportunity amount
+        for (Account acc : accountsToUpdate) {
+            Decimal totalOpportunityAmount = 0;
+
+            // Sum the opportunity amounts for active (not deleted) opportunities
+            for (Opportunity opp : acc.Opportunities) {
+                totalOpportunityAmount += opp.Amount != null ? opp.Amount : 0;
+            }
+
+            // Update the Total Opportunity Amount field
+            acc.Total_Opportunity_Amount__c = totalOpportunityAmount;
+        }
+
+        // Update the accounts with the new Total Opportunity Amount
+        update accountsToUpdate;
+    }
+}

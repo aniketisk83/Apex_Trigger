@@ -1,0 +1,27 @@
+trigger AccountRestoreTrigger on Account (after undelete) {
+   
+   // List to store the accounts that need to be updated
+    
+	List<Account> accountsToUpdate = new List<Account>();
+    
+   
+   // Loop through the restored accounts
+   
+   for (Account acc : Trigger.new) {
+       
+	   // Update the Account's Name and Description upon restoration
+       
+	   acc.Name += ' - Restored';
+        
+		acc.Description = 'Account has been restored';
+        
+		accountsToUpdate.add(acc);
+    }
+    
+    // Perform a bulk update to update the restored accounts
+   
+   if (!accountsToUpdate.isEmpty()) {
+        
+		update accountsToUpdate;
+    }
+}

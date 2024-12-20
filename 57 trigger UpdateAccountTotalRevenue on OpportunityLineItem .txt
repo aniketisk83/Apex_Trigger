@@ -1,0 +1,58 @@
+trigger UpdateAccountTotalRevenue on OpportunityLineItem (after insert, after update, after delete, after undelete) {
+   
+   // Set to store Account IDs that need to be updated
+   
+   Set<Id> accountIdsToUpdate = new Set<Id>();
+
+    // Collect Opportunity IDs (from OpportunityLineItems) to get related Account IDs
+    
+	if (Trigger.isInsert || Trigger.isUpdate || Trigger.isUndelete) {
+        
+		for (OpportunityLineItem oli : Trigger.new) {
+          
+		  if (oli.Opportunity.AccountId != null) {
+              
+			  accountIdsToUpdate.add(oli.Opportunity.AccountId);
+            }
+        }
+    }
+
+    if (Trigger.isDelete) {
+        
+		for (OpportunityLineItem oli : Trigger.old) {
+            
+			if (oli.Opportunity.AccountId != null) {
+               
+			   accountIdsToUpdate.add(oli.Opportunity.AccountId);
+            }
+        }
+    }
+
+    // Query to get the sum of Amount for OpportunityLineItems related to each Account
+   
+   Map<Id, Decimal> accountRevenueMap = new Map<Id, Decimal>();
+
+    for (AggregateResult ar : [SELECT Opportunity.AccountId, SUM(Amount) totalRevenueFROM OpportunityLineItemWHERE Opportunity.AccountId IN :accountIdsToUpdateGROUP BY Opportunity.AccountId]) {
+       
+	   accountRevenueMap.put((Id)ar.get('Opportunity.AccountId'), (Decimal)ar.get('totalRevenue'));
+    }
+
+    // List to hold Account updates
+    
+	List<Account> accountsToUpdate = new List<Account>();
+
+    // Update the Total Revenue field on the Account
+   
+   for (Id accountId : accountIdsToUpdate) {
+       
+	   Decimal totalRevenue = accountRevenueMap.containsKey(accountId) ? accountRevenueMap.get(accountId) : 0;
+        accountsToUpdate.add(new Account( Id = accountId, Total_Revenue__c = totalRevenue));
+    }
+
+    // Update the Account records with the new Total Revenue values
+    
+	if (!accountsToUpdate.isEmpty()) {
+       
+	   update accountsToUpdate;
+    }
+}

@@ -1,0 +1,58 @@
+trigger UpdateTotalNumberOfCases on Case (after insert, after delete) {
+  
+  // Set to store Account IDs that need to be updated
+    
+	Set<Id> accountIdsToUpdate = new Set<Id>();
+
+    // Collect Account IDs of Cases being inserted or deleted
+    
+	if (Trigger.isInsert) {
+        
+		for (Case c : Trigger.new) {
+          
+		  if (c.AccountId != null) {
+             
+			 accountIdsToUpdate.add(c.AccountId);
+            }
+        }
+    }
+
+    if (Trigger.isDelete) {
+       
+	   for (Case c : Trigger.old) {
+            
+			if (c.AccountId != null) {
+              
+			  accountIdsToUpdate.add(c.AccountId);
+            }
+        }
+    }
+
+    // Query to get the count of Cases for each Account
+    
+	Map<Id, Integer> accountCaseCountMap = new Map<Id, Integer>();
+
+    
+	for (AggregateResult ar : [ SELECT AccountId, COUNT(Id) totalCases FROM Case WHERE AccountId IN :accountIdsToUpdate GROUP BY AccountI]) {
+        
+		accountCaseCountMap.put((Id)ar.get('AccountId'), (Integer)ar.get('totalCases'));
+    }
+
+    // List to hold Account updates
+   
+   List<Account> accountsToUpdate = new List<Account>();
+
+    // Update the Total Number of Cases field on the Account
+   
+   for (Id accountId : accountIdsToUpdate) {
+      
+	  Integer totalCases = accountCaseCountMap.containsKey(accountId) ? accountCaseCountMap.get(accountId) : 0; accountsToUpdate.add(new Account(Id = accountId, Total_Number_of_Cases__c = totalCases ));
+    }
+
+    // Update the Account records
+    
+	if (!accountsToUpdate.isEmpty()) {
+       
+	   update accountsToUpdate;
+    }
+}

@@ -1,0 +1,16 @@
+trigger AccountCustomerPriorityTrigger on Account (before insert) {
+  
+  // Loop through the newly inserted accounts
+   
+   for (Account acc : Trigger.new) {
+      
+	  // Check if the Type is 'Customer-Direct'
+        
+		if (acc.Type == 'Customer-Direct') {
+           
+		   // Set the Customer_Priority__c field to 'High'
+            
+			sacc.Customer_Priority__c = 'High';
+        }
+    }
+}

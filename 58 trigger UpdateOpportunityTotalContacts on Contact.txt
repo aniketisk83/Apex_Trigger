@@ -1,0 +1,58 @@
+trigger UpdateOpportunityTotalContacts on Contact (after insert, after update, after delete, after undelete) {
+    
+	// Set to store Opportunity IDs that need to be updated
+   
+   Set<Id> opportunityIdsToUpdate = new Set<Id>();
+
+    // Collect Opportunity IDs of Contacts being inserted, updated, or deleted
+   
+   if (Trigger.isInsert || Trigger.isUpdate || Trigger.isUndelete) {
+       
+	   for (Contact c : Trigger.new) {
+          
+		  if (c.Opportunity__c != null) {  // Assuming the custom lookup field is Opportunity__c
+               
+			   opportunityIdsToUpdate.add(c.Opportunity__c);
+            }
+        }
+    }
+
+    if (Trigger.isDelete) {
+        
+		for (Contact c : Trigger.old) {
+            
+			if (c.Opportunity__c != null) {
+                
+				opportunityIdsToUpdate.add(c.Opportunity__c);
+            }
+        }
+    }
+
+    // Query to get the count of Contacts for each Opportunity
+   
+   Map<Id, Integer> opportunityContactCountMap = new Map<Id, Integer>();
+
+    for (AggregateResult ar : [SELECT Opportunity__c, COUNT(Id) totalContactsFROM Contact WHERE Opportunity__c IN :opportunityIdsToUpdateGROUP BY Opportunity__c]) {
+        opportunityContactCountMap.put((Id)ar.get('Opportunity__c'), (Integer)ar.get('totalContacts'));
+    }
+
+    // List to hold Opportunity updates
+    
+	List<Opportunity> opportunitiesToUpdate = new List<Opportunity>();
+
+    // Update the Total Contacts field on the Opportunity
+    
+	for (Id opportunityId : opportunityIdsToUpdate) {
+       
+	   Integer totalContacts = opportunityContactCountMap.containsKey(opportunityId) ? opportunityContactCountMap.get(opportunityId) : 0;
+      
+			opportunitiesToUpdate.add(new Opportunity(Id = opportunityId,Total_Contacts__c = totalContacts  // Assuming the custom field is Total_Contacts__c));
+    }
+
+    // Update the Opportunity records
+    
+	if (!opportunitiesToUpdate.isEmpty()) {
+       
+	   update opportunitiesToUpdate;
+    }
+}

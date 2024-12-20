@@ -1,0 +1,47 @@
+trigger LogContactAddressChanges on Contact (after update) {
+   
+   // List to hold Address Log records
+   
+   List<Address_Log__c> addressLogs = new List<Address_Log__c>();
+
+    // Iterate through the updated Contact records
+   
+   for (Contact c : Trigger.new) {
+       
+	   // Check if the Mailing Address has been changed
+       
+	   Contact oldContact = Trigger.oldMap.get(c.Id);
+        
+        // Compare old and new Mailing Address fields
+        
+		if (c.MailingStreet != oldContact.MailingStreet || 
+            c.MailingCity != oldContact.MailingCity || 
+            c.MailingState != oldContact.MailingState || 
+            c.MailingPostalCode != oldContact.MailingPostalCode || 
+            c.MailingCountry != oldContact.MailingCountry) {
+
+            // Create a new Address Log record
+            
+			Address_Log__c addressLog = new Address_Log__c();
+            
+			addressLog.Contact__c = c.Id;  // Set the Contact reference
+            
+			addressLog.Old_Mailing_Address__c = oldContact.MailingStreet + ', ' + oldContact.MailingCity + ', ' + oldContact.MailingState + ', ' +oldContact.MailingPostalCode + ', ' + oldContact.MailingCountry;  // Old Address
+
+            addressLog.New_Mailing_Address__c = c.MailingStreet + ', ' + c.MailingCity + ', ' + c.MailingState + ', ' +  c.MailingPostalCode + ', ' + c.MailingCountry;  // New Address
+
+            addressLog.Change_Date__c = System.now();  // Set the current date and time for the change
+
+            // Add the Address Log record to the list
+           
+		   addressLogs.add(addressLog);
+        }
+    }
+
+    // Insert the Address Log records if any changes were detected
+    
+	if (!addressLogs.isEmpty()) {
+        
+		insert addressLogs;
+    }
+}

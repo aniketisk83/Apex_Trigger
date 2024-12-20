@@ -1,0 +1,20 @@
+trigger AssignDefaultOwner on Lead (before insert) {
+   
+   // Define the default user ID (replace with the actual UserId of the default owner)
+    
+	Id defaultOwnerId = '005xxxxxxxxxxxx'; // Replace with actual UserId of the default owner
+
+    // Loop through each Lead being inserted
+    
+	for (Lead lead : Trigger.new) {
+       
+	   // Check if the Lead does not have an Owner (OwnerId is null)
+       
+	   if (lead.OwnerId == null) {
+         
+		 // Assign the default owner
+          
+		  lead.OwnerId = defaultOwnerId;
+        }
+    }
+}

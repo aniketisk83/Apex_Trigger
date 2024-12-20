@@ -1,0 +1,36 @@
+trigger AccountPhoneUpdateTrigger on Account (after update) {
+    
+	// Create a list to store opportunities that need to be updated
+    
+	List<Opportunity> opportunitiesToUpdate = new List<Opportunity>();
+
+    // Loop through the updated accounts
+    
+	for (Account acc : Trigger.new) {
+       
+	   // Check if the phone number was actually updated
+        
+		if (acc.Phone != Trigger.oldMap.get(acc.Id).Phone) {
+           
+		   // Retrieve all related opportunities for this account
+           
+		   List<Opportunity> relatedOpportunities = [SELECT Id, Phone FROM Opportunity WHERE AccountId = :acc.Id];
+            
+            // Update the phone field of each related opportunity
+            
+			for (Opportunity opp : relatedOpportunities) {
+               
+			   opp.Phone__c = acc.Phone; // Assuming there is a custom field "Phone__c" on Opportunity
+                
+				opportunitiesToUpdate.add(opp);
+            }
+        }
+    }
+
+    // Perform a bulk update for all affected opportunities
+  
+  if (!opportunitiesToUpdate.isEmpty()) {
+        
+		update opportunitiesToUpdate;
+    }
+}

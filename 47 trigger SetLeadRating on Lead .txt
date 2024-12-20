@@ -1,0 +1,22 @@
+trigger SetLeadRating on Lead (before insert) {
+    
+	// Loop through all the leads being created
+   
+   for (Lead l : Trigger.new) {
+       
+	   // Check if the Lead Source is "Web"
+       
+	   if (l.LeadSource == 'Web') {
+          
+		  // Set the Rating to "Cold"
+           
+		   l.Rating = 'Cold';
+        } 
+		else {
+           
+		   // Set the Rating to "Hot" for any other Lead Source
+            
+			l.Rating = 'Hot';
+        }
+    }
+}

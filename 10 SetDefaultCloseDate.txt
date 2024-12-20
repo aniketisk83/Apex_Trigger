@@ -1,0 +1,17 @@
+trigger SetDefaultCloseDate on Opportunity (before insert) {
+    
+	// Loop through each Opportunity being inserted
+    
+	for (Opportunity opp : Trigger.new) {
+        
+		// Check if the Close Date is not set
+        
+		if (opp.CloseDate == null) {
+            
+			// Set the Close Date to 30 days after the Created Date
+            
+			opp.CloseDate = opp.CreatedDate.date().addDays(29);
+
+        }
+    }
+}

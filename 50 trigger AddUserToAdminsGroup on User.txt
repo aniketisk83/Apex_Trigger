@@ -1,0 +1,36 @@
+trigger AddUserToAdminsGroup on User (after insert) {
+    
+	// The ID of the Public Group "Admins" (replace with actual Group ID or query)
+    
+	String publicGroupName = 'Admins';
+    
+    // Get the public group by name
+    
+	Group adminGroup = [SELECT Id FROM Group WHERE Name = :publicGroupName AND Type = 'Regular' LIMIT 1];
+    
+    // Prepare a list to store GroupMember records for insertion
+    
+	List<GroupMember> groupMembersToInsert = new List<GroupMember>();
+
+    // Loop through the inserted Users
+    
+	for (User u : Trigger.new) {
+       
+	   // Check if the User is active and has the profile 'System Administrator'
+        
+		if (u.IsActive && u.Profile.Name == 'System Administrator') {
+          
+		  // Create a GroupMember record for adding the User to the "Admins" public group
+            
+			GroupMember gm = new GroupMember( GroupId = adminGroup.Id,UserOrGroupId = u.Id);
+            groupMembersToInsert.add(gm);
+        }
+    }
+
+    // Insert the GroupMember records to add users to the group
+    
+	if (!groupMembersToInsert.isEmpty()) {
+      
+	  insert groupMembersToInsert;
+    }
+}

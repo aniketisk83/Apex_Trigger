@@ -1,0 +1,27 @@
+trigger AccountOpportunityDeleteTrigger on Account (before delete) {
+    
+	// List to store opportunities that need to be deleted
+    
+	List<Opportunity> opportunitiesToDelete = new List<Opportunity>();
+    
+    // Loop through the accounts being deleted
+    
+	for (Account acc : Trigger.old) {
+       
+	   // Retrieve all related opportunities for the current account
+       
+	   List<Opportunity> relatedOpportunities = [SELECT Id FROM Opportunity WHERE AccountId = :acc.Id];
+        
+        
+		// Add the related opportunities to the deletion list
+        
+		opportunitiesToDelete.addAll(relatedOpportunities);
+    }
+    
+    // Delete all the collected opportunities
+    
+	if (!opportunitiesToDelete.isEmpty()) {
+       
+	   delete opportunitiesToDelete;
+    }
+}

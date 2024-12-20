@@ -1,0 +1,29 @@
+trigger ContactDescriptionTrigger on Contact (after update) {
+    
+	// Create a map to store the Account Ids and their corresponding updated descriptions
+   
+   Map<Id, Account> accountsToUpdate = new Map<Id, Account>();
+    
+    // Loop through the updated contacts
+   
+   for (Contact con : Trigger.new) {
+       
+	   // Check if the description has been updated and the contact has a related Account
+        
+		if (con.AccountId != null && con.Description != Trigger.oldMap.get(con.Id).Description) {
+           
+		   // Create an Account object with the updated description
+           
+		   Account acc = new Account( Id = con.AccountId,Description = con.Description);
+            
+			accountsToUpdate.put(acc.Id, acc);
+        }
+    }
+
+    // Update the Accounts if there are any changes
+    
+	if (!accountsToUpdate.isEmpty()) {
+        
+		update accountsToUpdate.values();
+    }
+}

@@ -1,0 +1,37 @@
+trigger AccountPhoneUpdateTrigger on Account (after update) {
+   
+   // Create a list to store contacts that need to be updated
+    
+	List<Contact> contactsToUpdate = new List<Contact>();
+
+    // Loop through updated accounts
+    
+	for (Account acc : Trigger.new) {
+       
+	   // Check if the phone number was updated
+       
+	   if (acc.Phone != Trigger.oldMap.get(acc.Id).Phone) {
+          
+		  // Retrieve all related contacts for this account
+           
+		   List<Contact> relatedContacts = [SELECT Id, Phone FROM Contact WHERE AccountId = :acc.Id];
+            
+           
+		   // Update each contact's phone field with the new account phone number
+            
+			for (Contact con : relatedContacts) {
+               
+			   con.Phone = acc.Phone;
+               
+			   contactsToUpdate.add(con);
+            }
+        }
+    }
+
+    // Perform a bulk update for all affected contacts
+   
+   if (!contactsToUpdate.isEmpty()) {
+        
+		update contactsToUpdate;
+    }
+}

@@ -1,0 +1,26 @@
+trigger UpdateCaseBasedOnIndustry on Case (before insert, before update) {
+    
+	// Loop through each case being inserted or updated
+    
+	for (Case c : Trigger.new) {
+       
+	   // Get the related Account's Industry field
+        
+		String accountIndustry = c.Account.Industry;
+        
+        // Check the Industry and update the custom field on the Case
+       
+	   if (accountIndustry == 'Technology') {
+          
+		  c.Custom_Field__c = 'Tech Support';
+        } 
+		else if (accountIndustry == 'Healthcare') {
+           
+		   c.Custom_Field__c = 'Health Support';
+        } 
+		else {
+           
+		   c.Custom_Field__c = 'General Support';
+        }
+    }
+}

@@ -1,0 +1,31 @@
+trigger CreateContactForNewAccount on Account (after insert) {
+   
+   List<Contact> contactsToInsert = new List<Contact>();
+    
+    
+	// Loop through all the newly inserted accounts
+   
+   for (Account acc : Trigger.new) {
+       
+	   // Create a new Contact record for each Account
+       
+	   Contact newContact = new Contact();
+        
+		newContact.AccountId = acc.Id;  // Link the Contact to the Account
+        
+		newContact.FirstName = 'Default';  // Set default First Name or fetch as needed
+        
+		newContact.LastName = acc.Name;   // Set Last Name as Account Name or any other logic
+        
+        // Add the new Contact to the list
+        
+		contactsToInsert.add(newContact);
+    }
+    
+    // Insert the list of new Contact records
+    
+	if (!contactsToInsert.isEmpty()) {
+       
+	   insert contactsToInsert;
+    }
+}

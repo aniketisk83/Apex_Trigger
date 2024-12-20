@@ -1,0 +1,24 @@
+trigger ValidateLeadPhone on Lead (before insert, before update) {
+   
+   // Define a regular expression for the desired phone format (e.g., XXX-XXX-XXXX)
+    
+	String phonePattern = '^[2-9]{1}[0-9]{2}-[0-9]{3}-[0-9]{4}$';
+    
+    // Loop through all the Lead records being inserted or updated
+    
+	for (Lead l : Trigger.new) {
+        
+		if (l.Phone != null) {
+           
+		   // Validate if the Phone field matches the pattern
+           
+		   if (!l.Phone.matches(phonePattern)) {
+              
+			  // Add an error message to the Phone field if it doesn't match the pattern
+               
+			   l.Phone.addError('Phone number must be in the format XXX-XXX-XXXX.');
+            }
+			
+        }
+    }
+}

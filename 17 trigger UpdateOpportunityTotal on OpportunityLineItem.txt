@@ -1,0 +1,53 @@
+trigger UpdateOpportunityTotal on OpportunityLineItem (after insert, after update, after delete) {
+    
+	// Create a map to hold Opportunity IDs and their corresponding total value
+    
+	Map<Id, Decimal> opportunityTotalMap = new Map<Id, Decimal>();
+    
+    // If the trigger is running after insert, update, or delete, process the Opportunity Line Items
+    
+	if (Trigger.isInsert || Trigger.isUpdate || Trigger.isDelete) {
+       
+	   // Loop through each Opportunity Line Item being processed
+        
+		for (OpportunityLineItem oli : Trigger.isDelete ? Trigger.old : Trigger.new) {
+            
+			// Get the related Opportunity ID
+            
+			Id opportunityId = oli.OpportunityId;
+            
+            // Calculate the total value for the Opportunity by adding/subtracting the OLI's price
+            
+			Decimal lineItemTotal = oli.TotalPrice;
+            
+            // Accumulate the totals for each Opportunity
+            
+			if (opportunityTotalMap.containsKey(opportunityId)) {
+              
+			  opportunityTotalMap.put(opportunityId, opportunityTotalMap.get(opportunityId) + lineItemTotal);
+            } 
+			
+			else {
+                
+				opportunityTotalMap.put(opportunityId, lineItemTotal);
+            }
+        }
+        
+        // Now, update the Opportunities with the calculated total values
+       
+	   List<Opportunity> opportunitiesToUpdate = new List<Opportunity>();
+        
+		for (Id oppId : opportunityTotalMap.keySet()) {
+            
+			Opportunity opp = new Opportunity(Id = oppId);
+            
+			opp.Total_Value__c = opportunityTotalMap.get(oppId);  // Update custom field with total value
+            
+			opportunitiesToUpdate.add(opp);
+        }
+        
+        // Perform the update in bulk
+        
+		update opportunitiesToUpdate;
+    }
+}

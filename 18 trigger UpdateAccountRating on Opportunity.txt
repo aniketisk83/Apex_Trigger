@@ -1,0 +1,63 @@
+trigger UpdateAccountRating on Opportunity (after insert, after update, after delete) {
+   
+   // Create a map to store Account IDs and the total value of related Opportunities
+   
+   Map<Id, Decimal> accountTotalValueMap = new Map<Id, Decimal>();
+
+    // Process the Opportunity records that are being inserted, updated, or deleted
+    
+	if (Trigger.isInsert || Trigger.isUpdate || Trigger.isDelete) {
+       
+	   // Loop through the Opportunity records in Trigger.new (insert/update) or Trigger.old (delete)
+        
+		for (Opportunity opp : Trigger.isDelete ? Trigger.old : Trigger.new) {
+           
+		   // Get the related Account ID
+            
+			Id accountId = opp.AccountId;
+
+            // Calculate the total value of Opportunities for the related Account
+           
+		   Decimal opportunityAmount = opp.Amount;
+
+            // Accumulate the Opportunity values for each Account
+            
+			if (accountTotalValueMap.containsKey(accountId)) {
+              
+			  accountTotalValueMap.put(accountId, accountTotalValueMap.get(accountId) + opportunityAmount);
+            } 
+			
+			else {
+                
+				accountTotalValueMap.put(accountId, opportunityAmount);
+            }
+        }
+
+        // Update the Account's Rating field based on the total Opportunity value
+        
+		List<Account> accountsToUpdate = new List<Account>();
+        
+		for (Id accountId : accountTotalValueMap.keySet()) {
+            
+			// Retrieve the Account record
+            
+			Account account = [SELECT Id, Rating FROM Account WHERE Id = :accountId LIMIT 1];
+
+            // Check if the total value exceeds $100,000 and update the Account Rating
+            
+			if (accountTotalValueMap.get(accountId) > 100000) {
+               
+			   account.Rating = 'Hot'; // Set the Account Rating to 'Hot'
+                
+				accountsToUpdate.add(account);
+            }
+        }
+
+        // Perform the bulk update on the Account records
+        
+		if (!accountsToUpdate.isEmpty()) {
+           
+		   update accountsToUpdate;
+        }
+    }
+}

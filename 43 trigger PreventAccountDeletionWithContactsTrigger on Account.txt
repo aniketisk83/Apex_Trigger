@@ -1,0 +1,21 @@
+trigger PreventAccountDeletionWithContactsTrigger on Account (before delete) {
+    
+	// Loop through the accounts being deleted
+   
+   for (Account acc : Trigger.old) {
+       
+	   // Query to count the number of related contacts for the current account
+       
+	   Integer contactCount = [SELECT COUNT() FROM Contact WHERE AccountId = :acc.Id];
+        
+        
+		// If the account has any related contacts, prevent deletion
+       
+	   if (contactCount > 0) {
+         
+		 // Add an error to prevent deletion
+          
+		  acc.addError('This Account cannot be deleted because it has related Contacts.');
+        }
+    }
+}

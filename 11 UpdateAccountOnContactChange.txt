@@ -1,0 +1,59 @@
+trigger UpdateAccountOnContactChange on Contact (after insert, after update) {
+    
+	// Step 1: Collect Account IDs from the new or updated Contact records
+    
+	Set<Id> accountIds = new Set<Id>();
+    
+	for (Contact con : Trigger.new) {
+        
+		if (con.AccountId != null) {
+           
+		   accountIds.add(con.AccountId);
+        }
+    }
+
+    // Exit early if no related Accounts are found
+   
+   if (accountIds.isEmpty()) {
+       
+	   return;
+    }
+
+    // Step 2: Create a map to store the count of Contacts for each Account
+    
+	Map<Id, Integer> accountContactCountMap = new Map<Id, Integer>();
+    
+    // Step 3: Use an Aggregate Query to count the number of Contacts related to each Account
+    
+	List<AggregateResult> aggregateResults = [SELECT AccountId, COUNT(Id) totalCountFROM ContactWHERE AccountId IN :accountIdsGROUP BY AccountId];
+
+    // Store the counts in the map
+   
+   for (AggregateResult result : aggregateResults) {
+       
+	   accountContactCountMap.put((Id) result.get('AccountId'), (Integer) result.get('totalCount'));
+    }
+
+    // Step 4: Prepare a list of Account records to update with the new contact count
+    
+	List<Account> accountsToUpdate = new List<Account>();
+    
+	for (Id accountId : accountIds) {
+        
+		Account acc = new Account();
+        
+		acc.Id = accountId;
+        
+		acc.Number_of_Contacts__c = accountContactCountMap.containsKey(accountId) 
+                                    ? accountContactCountMap.get(accountId) 
+                                    : 0;
+        accountsToUpdate.add(acc);
+    }
+
+    // Step 5: Perform a bulk update on the Account records
+    
+	if (!accountsToUpdate.isEmpty()) {
+        
+		update accountsToUpdate;
+    }
+}

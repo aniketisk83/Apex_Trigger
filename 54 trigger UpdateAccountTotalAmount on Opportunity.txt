@@ -1,0 +1,61 @@
+trigger UpdateAccountTotalAmount on Opportunity (after insert, after update, after delete, after undelete) {
+    
+	// Set to store Account IDs that need to be updated
+    
+	Set<Id> accountIdsToUpdate = new Set<Id>();
+
+    // Collect Account IDs of Opportunities that are being inserted, updated, or undeleted
+    
+	if (Trigger.isInsert || Trigger.isUpdate || Trigger.isUndelete) {
+       
+	   for (Opportunity opp : Trigger.new) {
+          
+		  if (opp.AccountId != null) {
+              
+			  accountIdsToUpdate.add(opp.AccountId);
+            }
+        }
+    }
+
+    // Collect Account IDs of Opportunities that are being deleted
+    
+	if (Trigger.isDelete) {
+        
+		for (Opportunity opp : Trigger.old) {
+          
+		  if (opp.AccountId != null) {
+               
+			   accountIdsToUpdate.add(opp.AccountId);
+            }
+        }
+    }
+
+    // Query the related Accounts and calculate the sum of Amount for each Account
+   
+   Map<Id, Decimal> accountAmountMap = new Map<Id, Decimal>();
+
+    for (AggregateResult ar : [SELECT AccountId, SUM(Amount) totalAmountFROM OpportunityWHERE AccountId IN :accountIdsToUpdate GROUP BY AccountId]) {
+        
+		accountAmountMap.put((Id)ar.get('AccountId'), (Decimal)ar.get('totalAmount'));
+    }
+
+    // List to hold Account updates
+    
+	List<Account> accountsToUpdate = new List<Account>();
+
+    // Update the Total Amount field on the Account
+    
+	for (Id accountId : accountIdsToUpdate) {
+       
+	   Decimal totalAmount = accountAmountMap.containsKey(accountId) ? accountAmountMap.get(accountId) : 0;
+        
+		accountsToUpdate.add(new Account(Id = accountId,Total_Amount__c = totalAmount ));
+    }
+
+    // Update the Account records
+   
+		if (!accountsToUpdate.isEmpty()) {
+       
+			update accountsToUpdate;
+    }
+}
